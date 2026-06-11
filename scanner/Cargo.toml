@@ -1,0 +1,17 @@
+# Rust Cargo.toml — defines the aanf-scanner crate.
+# Compiles to both a shared library (for Python via PyO3)
+# and a standalone binary (for subprocess/pipe usage).
+[package]
+name = "aanf-scanner"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance token scanner for AANF"
+
+[dependencies]
+regex = "1"          # Fast regex matching engine
+serde = { version = "1", features = ["derive"] }  # JSON serialization
+serde_json = "1"     # JSON output formatting
+
+[lib]
+name = "aanf_scanner"
+crate-type = ["cdylib", "rlib"]  # cdylib for Python FFI, rlib for Rust consumers

@@ -1,0 +1,5 @@
+include aanf/config/policies.yaml
+include aanf/py.typed
+include LICENSE
+include README.md
+recursive-include aanf/scanner *

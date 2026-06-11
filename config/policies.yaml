@@ -1,0 +1,40 @@
+layers:
+  network:
+    enabled: true
+    rate_limit: 100/min
+    block_ips: []
+  syntactic:
+    enabled: true
+    max_prompt_length: 4096
+    block_escape_seq: true
+  semantic:
+    enabled: true
+    model: llama3.2
+    threshold: 0.75
+  context:
+    enabled: true
+    max_history: 20
+    drift_threshold: 0.6
+
+guardrails:
+  prompt_guard:
+    enabled: true
+    model: "bert-base-uncased-jailbreak"
+    threshold: 0.85
+  alignment_check:
+    enabled: true
+    model: llama3.2
+  code_shield:
+    enabled: true
+    languages: [python, javascript, sql]
+    rules_dir: ./rules/
+
+actions:
+  block_threshold: 0.9
+  redact_threshold: 0.7
+  alert_threshold: 0.5
+
+integration:
+  mode: middleware
+  siem_webhook: ""
+  alert_channel: "slack"

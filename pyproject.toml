@@ -1,0 +1,123 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aanf"
+version = "0.2.0"
+description = "AI Agentic Native Firewall — Multi-layer security for LLM applications"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["llm-security", "ai-firewall", "guardrails", "jailbreak-detection", "prompt-security"]
+authors = [
+    {name = "AANF Contributors"},
+]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+    "pyyaml>=6.0",
+    "httpx>=0.27.0",
+    "transformers>=4.38.0",
+    "torch>=2.2.0",
+    "datasets>=2.18.0",
+    "pydantic>=2.5.0",
+]
+
+[project.optional-dependencies]
+semgrep = ["semgrep>=1.60.0"]
+langchain = ["langchain>=0.2.0"]
+litellm = ["litellm>=1.30.0"]
+rust = ["maturin>=1.5.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.3.0",
+    "black>=24.0",
+    "mypy>=1.8.0",
+    "pre-commit>=3.0",
+]
+all = [
+    "aanf[semgrep,langchain,litellm,rust,dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/anomalyco/aanf"
+Repository = "https://github.com/anomalyco/aanf"
+Documentation = "https://aanf.readthedocs.io"
+Issues = "https://github.com/anomalyco/aanf/issues"
+
+[project.entry-points."aanf.plugins.layers"]
+network = "aanf.layers.network:NetworkLayer"
+syntactic = "aanf.layers.syntactic:SyntacticLayer"
+semantic = "aanf.layers.semantic:SemanticLayer"
+context = "aanf.layers.context:ContextLayer"
+
+[project.entry-points."aanf.plugins.guardrails"]
+prompt_guard = "aanf.guardrails.prompt_guard:PromptGuard"
+alignment_check = "aanf.guardrails.alignment_check:AlignmentCheck"
+code_shield = "aanf.guardrails.code_shield:CodeShield"
+
+[project.entry-points."aanf.plugins.integrations"]
+fastapi = "aanf.integration.fastapi_middleware:AANFMiddleware"
+litellm = "aanf.integration.litellm_proxy:aanf_pre_call_hook"
+langchain = "aanf.integration.langchain_hooks:AANFGuardrailHandler"
+mcp = "aanf.integration.mcp_server:AANFMCPTool"
+
+[project.scripts]
+aanf = "aanf.main:entry_point"
+
+[tool.setuptools.packages.find]
+include = ["aanf*"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "ollama: marks tests that require Ollama running",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true
+disallow_untyped_defs = false
+
+[tool.coverage.run]
+source = ["aanf"]
+omit = ["*/tests/*", "*/venv/*"]
+
+[tool.coverage.report]
+exclude_also = [
+    "def __repr__",
+    "if __name__ == .__main__.:",
+]
