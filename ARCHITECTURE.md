@@ -1,8 +1,8 @@
-# AI Agentic Native Firewall (AANF) — Architecture
+# AI Agentic Native Firewall (keeper) — Architecture
 
 ## Overview
 
-AANF is a modular, multi-layer security firewall for LLM-powered applications and AI agents. It intercepts every prompt, tool call, and agent output, enforcing policy through a chain of independent security layers.
+keeper is a modular, multi-layer security firewall for LLM-powered applications and AI agents. It intercepts every prompt, tool call, and agent output, enforcing policy through a chain of independent security layers.
 
 ## Pipeline
 
@@ -67,7 +67,7 @@ User/Agent Request
 ## Directory
 
 ```
-aanf/
+keeper/
 ├── core/           # Policy engine & pipeline
 ├── layers/         # Security layers (network, syntactic, semantic, context)
 ├── guardrails/     # Pluggable guardrails (PromptGuard, AlignmentCheck, CodeShield)

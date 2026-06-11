@@ -2,7 +2,7 @@
 
 ## Configuration File
 
-AANF is configured via a single YAML file at `config/policies.yaml`:
+keeper is configured via a single YAML file at `config/policies.yaml`:
 
 ```yaml
 layers:
@@ -110,7 +110,7 @@ integration:
 ## Custom Configuration Path
 
 ```python
-from aanf.core.engine import PolicyEngine
+from keeper.core.engine import PolicyEngine
 
 engine = PolicyEngine(config_path="/path/to/custom/policies.yaml")
 ```

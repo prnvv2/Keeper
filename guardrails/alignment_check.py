@@ -3,9 +3,9 @@
 # trace for signs of goal hijacking or prompt-injection misalignment.
 # This is the first open-source approach to auditing CoT in real time.
 
-from aanf.core.pipeline import RequestContext
-from aanf.core.engine import Action
-from aanf.models.ollama_client import OllamaClient
+from keeper.core.pipeline import RequestContext
+from keeper.core.engine import Action
+from keeper.models.ollama_client import OllamaClient
 
 
 # Prompt template for the CoT auditor LLM

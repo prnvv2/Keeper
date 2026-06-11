@@ -2,6 +2,10 @@
 
 ## v0.2.0 (Unreleased)
 
+### 🔥 Project Renamed: Keeper — Firewall for AI
+Renamed from **AANF** to **Keeper**.
+
+### 🚀 New Features
 - Refactored into production-ready package structure
 - Added `pyproject.toml` with modern Python packaging
 - Added comprehensive exception hierarchy
@@ -13,9 +17,9 @@
 - Improved `Pipeline` with `unregister()`, `get_layer()`, `to_dict()`
 - Improved `PolicyEngine` with `reload()` support
 - Improved `RequestContext` with proper defaults
-- Fixed internal imports to use `aanf.` prefix for installed-package compatibility
+- Fixed internal imports to use `keeper.` prefix for installed-package compatibility
 
-## v0.1.0 (Initial)
+## v0.1.0 (Initial as AANF)
 
 - 7-layer defense pipeline
 - BERT jailbreak detection (PromptGuard)

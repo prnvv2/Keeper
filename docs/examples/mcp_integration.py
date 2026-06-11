@@ -1,8 +1,8 @@
-from aanf import build_pipeline
-from aanf.integration.mcp_server import AANFMCPTool
+from keeper import build_pipeline
+from keeper.integration.mcp_server import keeperMCPTool
 
 pipeline = build_pipeline()
-tool = AANFMCPTool(pipeline)
+tool = keeperMCPTool(pipeline)
 
 print(tool.schema)
 

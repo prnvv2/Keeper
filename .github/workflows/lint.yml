@@ -28,11 +28,11 @@ jobs:
           pip install ruff black mypy
 
       - name: Ruff lint
-        run: ruff check aanf/
+        run: ruff check keeper/
 
       - name: Black format check
-        run: black --check aanf/
+        run: black --check keeper/
 
       - name: MyPy type check
-        run: mypy aanf/ --ignore-missing-imports
+        run: mypy keeper/ --ignore-missing-imports
         continue-on-error: true

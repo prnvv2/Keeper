@@ -3,10 +3,10 @@
 # Detects jailbreaks, role-playing bypasses, and encoded instructions
 # that regex-based syntactic checks would miss.
 
-from aanf.layers.base import BaseLayer
-from aanf.core.pipeline import RequestContext
-from aanf.core.engine import Action
-from aanf.models.ollama_client import OllamaClient
+from keeper.layers.base import BaseLayer
+from keeper.core.pipeline import RequestContext
+from keeper.core.engine import Action
+from keeper.models.ollama_client import OllamaClient
 
 
 # Template sent to the Ollama model for jailbreak classification.

@@ -1,4 +1,4 @@
-# AANF Setup Guide
+# keeper Setup Guide
 
 ## Prerequisites
 
@@ -16,8 +16,8 @@
 ### 1. Clone the repository
 
 ```bash
-git clone <repo-url> aanf
-cd aanf
+git clone <repo-url> keeper
+cd keeper
 ```
 
 ### 2. Create a virtual environment
@@ -54,12 +54,12 @@ cd scanner
 
 # Build the standalone binary
 cargo build --release
-# Binary at: target/release/aanf-scanner.exe (Windows)
-#             target/release/aanf-scanner (Linux/macOS)
+# Binary at: target/release/keeper-scanner.exe (Windows)
+#             target/release/keeper-scanner (Linux/macOS)
 
 # Build the Python shared library (requires maturin)
 maturin develop --release
-# This makes `import aanf_scanner` available in Python
+# This makes `import keeper_scanner` available in Python
 ```
 
 ### 5. Start Ollama
@@ -173,32 +173,32 @@ curl -s -X POST http://localhost:8000/chat \
 
 ### FastAPI (Middleware)
 
-Add AANF as middleware to any existing FastAPI app:
+Add keeper as middleware to any existing FastAPI app:
 
 ```python
 from fastapi import FastAPI
-from aanf.integration.fastapi_middleware import AANFMiddleware
-from aanf.main import build_pipeline
+from keeper.integration.fastapi_middleware import keeperMiddleware
+from keeper.main import build_pipeline
 
 app = FastAPI()
 pipeline = build_pipeline()
-app.add_middleware(AANFMiddleware, pipeline=pipeline)
+app.add_middleware(keeperMiddleware, pipeline=pipeline)
 ```
 
 Every `POST` request is now scanned before reaching your route handlers. Returns `403` for blocked requests.
 
 ### LangChain (Callback Handler)
 
-Attach AANF to any LangChain agent:
+Attach keeper to any LangChain agent:
 
 ```python
 from langchain.agents import create_react_agent
 from langchain_openai import ChatOpenAI
-from aanf.integration.langchain_hooks import AANFGuardrailHandler
-from aanf.main import build_pipeline
+from keeper.integration.langchain_hooks import keeperGuardrailHandler
+from keeper.main import build_pipeline
 
 pipeline = build_pipeline()
-handler = AANFGuardrailHandler(pipeline)
+handler = keeperGuardrailHandler(pipeline)
 
 llm = ChatOpenAI(model="gpt-4")
 agent = create_react_agent(llm, tools, prompt)
@@ -210,11 +210,11 @@ agent = create_react_agent(llm, tools, prompt)
 
 ```python
 import litellm
-from aanf.integration.litellm_proxy import aanf_pre_call_hook, pipeline as aanf_pipeline
-from aanf.main import build_pipeline
+from keeper.integration.litellm_proxy import keeper_pre_call_hook, pipeline as keeper_pipeline
+from keeper.main import build_pipeline
 
-aanf_pipeline = build_pipeline()
-litellm.pre_call_hook = aanf_pre_call_hook
+keeper_pipeline = build_pipeline()
+litellm.pre_call_hook = keeper_pre_call_hook
 
 # All subsequent LiteLLM calls are scanned before reaching the provider
 response = litellm.completion(model="gpt-4", messages=[...])
@@ -222,14 +222,14 @@ response = litellm.completion(model="gpt-4", messages=[...])
 
 ### MCP (Model Context Protocol)
 
-Expose AANF as a tool for MCP-compatible applications (Claude Desktop, VS Code):
+Expose keeper as a tool for MCP-compatible applications (Claude Desktop, VS Code):
 
 ```python
-from aanf.integration.mcp_server import AANFMCPTool
-from aanf.main import build_pipeline
+from keeper.integration.mcp_server import keeperMCPTool
+from keeper.main import build_pipeline
 
 pipeline = build_pipeline()
-tool = AANFMCPTool(pipeline)
+tool = keeperMCPTool(pipeline)
 
 # Use with any MCP client
 result = await tool.call("user prompt here")
@@ -244,7 +244,7 @@ cd scanner
 cargo build --release
 
 # Scan a prompt file
-cat prompt.txt | .\target\release\aanf-scanner.exe
+cat prompt.txt | .\target\release\keeper-scanner.exe
 
 # Example output:
 # {
@@ -265,19 +265,19 @@ maturin develop --release
 ```
 
 ```python
-import aanf_scanner
+import keeper_scanner
 
-result = aanf_scanner.scan_text("user@example.com")
+result = keeper_scanner.scan_text("user@example.com")
 print(result.max_severity)  # 0.5
 ```
 
 ## Evaluation
 
-Run AANF against standard threat benchmarks:
+Run keeper against standard threat benchmarks:
 
 ```python
-from aanf.models.datasets import evaluate
-from aanf.main import build_pipeline
+from keeper.models.datasets import evaluate
+from keeper.main import build_pipeline
 
 pipeline = build_pipeline()
 

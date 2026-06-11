@@ -2,13 +2,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from aanf.core.engine import Action
-from aanf.core.pipeline import RequestContext
+from keeper.core.engine import Action
+from keeper.core.pipeline import RequestContext
 
 
 @pytest.fixture
 def mock_ollama():
-    with patch("aanf.models.ollama_client.OllamaClient.generate", new_callable=AsyncMock) as mock:
+    with patch("keeper.models.ollama_client.OllamaClient.generate", new_callable=AsyncMock) as mock:
         mock.return_value = "NO"
         yield mock
 
@@ -16,7 +16,7 @@ def mock_ollama():
 class TestPromptGuard:
     @pytest.mark.asyncio
     async def test_no_model_loaded_returns_ctx(self):
-        from aanf.guardrails.prompt_guard import PromptGuard
+        from keeper.guardrails.prompt_guard import PromptGuard
         pg = PromptGuard()
         ctx = RequestContext(prompt="test")
         config = {"enabled": True, "threshold": 0.85}
@@ -25,7 +25,7 @@ class TestPromptGuard:
 
     @pytest.mark.asyncio
     async def test_model_disabled_returns_ctx(self):
-        from aanf.guardrails.prompt_guard import PromptGuard
+        from keeper.guardrails.prompt_guard import PromptGuard
         pg = PromptGuard()
         ctx = RequestContext(prompt="test")
         config = {"enabled": False, "threshold": 0.85}
@@ -36,7 +36,7 @@ class TestPromptGuard:
 class TestAlignmentCheck:
     @pytest.mark.asyncio
     async def test_no_cot_returns_ctx(self):
-        from aanf.guardrails.alignment_check import AlignmentCheck
+        from keeper.guardrails.alignment_check import AlignmentCheck
         ac = AlignmentCheck()
         ctx = RequestContext(prompt="test")
         config = {"enabled": True, "model": "llama3.2"}
@@ -45,7 +45,7 @@ class TestAlignmentCheck:
 
     @pytest.mark.asyncio
     async def test_disabled_returns_ctx(self):
-        from aanf.guardrails.alignment_check import AlignmentCheck
+        from keeper.guardrails.alignment_check import AlignmentCheck
         ac = AlignmentCheck()
         ctx = RequestContext(prompt="test", metadata={"chain_of_thought": "some reasoning"})
         config = {"enabled": False, "model": "llama3.2"}
@@ -55,7 +55,7 @@ class TestAlignmentCheck:
     @pytest.mark.asyncio
     async def test_blocks_deviation(self, mock_ollama):
         mock_ollama.return_value = "YES - the agent deviated from its goal"
-        from aanf.guardrails.alignment_check import AlignmentCheck
+        from keeper.guardrails.alignment_check import AlignmentCheck
         ac = AlignmentCheck()
         ctx = RequestContext(
             prompt="test",
@@ -71,7 +71,7 @@ class TestAlignmentCheck:
     @pytest.mark.asyncio
     async def test_allows_aligned(self, mock_ollama):
         mock_ollama.return_value = "NO - the agent is following its goal correctly"
-        from aanf.guardrails.alignment_check import AlignmentCheck
+        from keeper.guardrails.alignment_check import AlignmentCheck
         ac = AlignmentCheck()
         ctx = RequestContext(
             prompt="test",
@@ -88,7 +88,7 @@ class TestAlignmentCheck:
 class TestCodeShield:
     @pytest.mark.asyncio
     async def test_no_code_returns_ctx(self):
-        from aanf.guardrails.code_shield import CodeShield
+        from keeper.guardrails.code_shield import CodeShield
         cs = CodeShield()
         ctx = RequestContext(prompt="test")
         config = {"enabled": True, "languages": ["python"]}
@@ -97,7 +97,7 @@ class TestCodeShield:
 
     @pytest.mark.asyncio
     async def test_blocks_exec(self):
-        from aanf.guardrails.code_shield import CodeShield
+        from keeper.guardrails.code_shield import CodeShield
         cs = CodeShield()
         ctx = RequestContext(
             prompt="test",
@@ -110,7 +110,7 @@ class TestCodeShield:
 
     @pytest.mark.asyncio
     async def test_blocks_eval(self):
-        from aanf.guardrails.code_shield import CodeShield
+        from keeper.guardrails.code_shield import CodeShield
         cs = CodeShield()
         ctx = RequestContext(
             prompt="test",
@@ -122,7 +122,7 @@ class TestCodeShield:
 
     @pytest.mark.asyncio
     async def test_blocks_subprocess(self):
-        from aanf.guardrails.code_shield import CodeShield
+        from keeper.guardrails.code_shield import CodeShield
         cs = CodeShield()
         ctx = RequestContext(
             prompt="test",
@@ -134,7 +134,7 @@ class TestCodeShield:
 
     @pytest.mark.asyncio
     async def test_blocks_pickle(self):
-        from aanf.guardrails.code_shield import CodeShield
+        from keeper.guardrails.code_shield import CodeShield
         cs = CodeShield()
         ctx = RequestContext(
             prompt="test",
@@ -146,7 +146,7 @@ class TestCodeShield:
 
     @pytest.mark.asyncio
     async def test_blocks_inner_html(self):
-        from aanf.guardrails.code_shield import CodeShield
+        from keeper.guardrails.code_shield import CodeShield
         cs = CodeShield()
         ctx = RequestContext(
             prompt="test",
@@ -158,7 +158,7 @@ class TestCodeShield:
 
     @pytest.mark.asyncio
     async def test_blocks_concatenated_sql(self):
-        from aanf.guardrails.code_shield import CodeShield
+        from keeper.guardrails.code_shield import CodeShield
         cs = CodeShield()
         ctx = RequestContext(
             prompt="test",
@@ -170,7 +170,7 @@ class TestCodeShield:
 
     @pytest.mark.asyncio
     async def test_allows_safe_code(self):
-        from aanf.guardrails.code_shield import CodeShield
+        from keeper.guardrails.code_shield import CodeShield
         cs = CodeShield()
         ctx = RequestContext(
             prompt="test",

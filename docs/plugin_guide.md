@@ -1,6 +1,6 @@
 # Plugin Guide
 
-AANF supports plugin-based extensibility via Python entry points. Plugins can add new layers, guardrails, or integrations.
+keeper supports plugin-based extensibility via Python entry points. Plugins can add new layers, guardrails, or integrations.
 
 ## Plugin Discovery
 
@@ -8,9 +8,9 @@ Plugins are discovered using `importlib.metadata.entry_points()` with the follow
 
 | Group | Type | Example |
 |-------|------|---------|
-| `aanf.plugins.layers` | Security layer | `NetworkLayer` |
-| `aanf.plugins.guardrails` | Guardrail | `PromptGuard` |
-| `aanf.plugins.integrations` | Integration adapter | `AANFMiddleware` |
+| `keeper.plugins.layers` | Security layer | `NetworkLayer` |
+| `keeper.plugins.guardrails` | Guardrail | `PromptGuard` |
+| `keeper.plugins.integrations` | Integration adapter | `keeperMiddleware` |
 
 ## Creating a Plugin Package
 
@@ -18,8 +18,8 @@ Plugins are discovered using `importlib.metadata.entry_points()` with the follow
 
 ```python
 # my_plugin/layer.py
-from aanf import BaseLayer, RequestContext
-from aanf.core.engine import Action
+from keeper import BaseLayer, RequestContext
+from keeper.core.engine import Action
 
 class CustomLayer(BaseLayer):
     name = "custom_layer"
@@ -34,7 +34,7 @@ class CustomLayer(BaseLayer):
 ### 2. Register entry points in `pyproject.toml`
 
 ```toml
-[project.entry-points."aanf.plugins.layers"]
+[project.entry-points."keeper.plugins.layers"]
 custom_layer = "my_plugin.layer:CustomLayer"
 ```
 
@@ -47,7 +47,7 @@ pip install my-plugin
 ### 4. Load and register
 
 ```python
-from aanf.plugins import discover_layers
+from keeper.plugins import discover_layers
 
 layers = discover_layers()
 print(layers)  # {"custom_layer": <class CustomLayer>}

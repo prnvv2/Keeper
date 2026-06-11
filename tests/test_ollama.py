@@ -1,6 +1,6 @@
 import pytest
 
-from aanf.models.ollama_client import OllamaClient
+from keeper.models.ollama_client import OllamaClient
 
 
 class TestOllamaClient:

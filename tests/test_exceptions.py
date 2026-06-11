@@ -1,7 +1,7 @@
 import pytest
 
-from aanf.core.exceptions import (
-    AANFError,
+from keeper.core.exceptions import (
+    KeeperError,
     ConfigurationError,
     LayerNotRegisteredError,
     OllamaConnectionError,
@@ -13,9 +13,9 @@ from aanf.core.exceptions import (
 
 
 class TestExceptions:
-    def test_aanf_error(self):
-        with pytest.raises(AANFError):
-            raise AANFError("base error")
+    def test_keeper_error(self):
+        with pytest.raises(KeeperError):
+            raise KeeperError("base error")
 
     def test_pipeline_error(self):
         with pytest.raises(PipelineError):
@@ -51,12 +51,12 @@ class TestExceptions:
         assert "custom_layer" in str(err)
 
     def test_exception_hierarchy(self):
-        assert issubclass(PipelineError, AANFError)
-        assert issubclass(ConfigurationError, AANFError)
-        assert issubclass(PolicyViolationError, AANFError)
-        assert issubclass(OllamaConnectionError, AANFError)
-        assert issubclass(PluginLoadError, AANFError)
-        assert issubclass(RateLimitExceededError, AANFError)
+        assert issubclass(PipelineError, KeeperError)
+        assert issubclass(ConfigurationError, KeeperError)
+        assert issubclass(PolicyViolationError, KeeperError)
+        assert issubclass(OllamaConnectionError, KeeperError)
+        assert issubclass(PluginLoadError, KeeperError)
+        assert issubclass(RateLimitExceededError, KeeperError)
         assert issubclass(LayerNotRegisteredError, PipelineError)
 
     def test_policy_violation_defaults(self):

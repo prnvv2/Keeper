@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/aanf
+      url: https://pypi.org/p/keeper
 
     steps:
       - uses: actions/download-artifact@v4

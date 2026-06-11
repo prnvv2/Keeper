@@ -1,9 +1,9 @@
 import pytest
 
-from aanf.core.engine import Action
-from aanf.core.exceptions import LayerNotRegisteredError
-from aanf.core.pipeline import RequestContext
-from aanf.layers.base import BaseLayer
+from keeper.core.engine import Action
+from keeper.core.exceptions import LayerNotRegisteredError
+from keeper.core.pipeline import RequestContext
+from keeper.layers.base import BaseLayer
 
 
 class TestRequestContext:
@@ -95,7 +95,7 @@ class TestPipeline:
         assert result.risk_score == 0.0
 
     def test_get_layer(self, pipeline):
-        from aanf.layers.network import NetworkLayer
+        from keeper.layers.network import NetworkLayer
         pipeline.register(NetworkLayer())
         layer = pipeline.get_layer("network")
         assert layer.name == "network"
@@ -105,14 +105,14 @@ class TestPipeline:
             pipeline.get_layer("nonexistent")
 
     def test_unregister(self, pipeline):
-        from aanf.layers.network import NetworkLayer
+        from keeper.layers.network import NetworkLayer
         pipeline.register(NetworkLayer())
         assert len(pipeline.layers) == 1
         pipeline.unregister("network")
         assert len(pipeline.layers) == 0
 
     def test_repr(self, pipeline):
-        from aanf.layers.network import NetworkLayer
+        from keeper.layers.network import NetworkLayer
         pipeline.register(NetworkLayer())
         r = repr(pipeline)
         assert "network" in r

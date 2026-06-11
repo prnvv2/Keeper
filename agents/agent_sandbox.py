@@ -3,8 +3,8 @@
 # tool access (file I/O, HTTP, shell, etc.) and captures
 # tool metadata for downstream scanning.
 
-from aanf.core.pipeline import RequestContext
-from aanf.core.engine import Action
+from keeper.core.pipeline import RequestContext
+from keeper.core.engine import Action
 
 
 class AgentSandbox:

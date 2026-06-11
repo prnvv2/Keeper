@@ -24,7 +24,7 @@ async def evaluate(pipeline, benchmark_name: str, label_key: str = "label", text
     correct = 0
     total = 0
     for example in ds:
-        from aanf.core.pipeline import RequestContext
+        from keeper.core.pipeline import RequestContext
         ctx = RequestContext(prompt=example.get(text_key, ""))
         ctx = await pipeline.run(ctx)
         is_malicious = bool(example.get(label_key, 0))

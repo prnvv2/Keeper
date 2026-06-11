@@ -2,12 +2,12 @@
 
 ## Top-Level API
 
-### `aanf.build_pipeline()`
+### `keeper.build_pipeline()`
 Returns a fully configured `Pipeline` instance with all default layers and guardrails registered in order.
 
 **Returns:** `Pipeline`
 
-### `aanf.__version__`
+### `keeper.__version__`
 Current version string (e.g., `"0.2.0"`).
 
 ---
@@ -77,7 +77,7 @@ Action.ALERT   # Log warning, allow
 ### `BaseLayer`
 
 ```python
-from aanf import BaseLayer
+from keeper import BaseLayer
 
 class CustomLayer(BaseLayer):
     name = "custom"
@@ -90,7 +90,7 @@ class CustomLayer(BaseLayer):
 ### `BaseGuardrail`
 
 ```python
-from aanf import BaseGuardrail
+from keeper import BaseGuardrail
 
 class CustomGuardrail(BaseGuardrail):
     name = "custom_guardrail"
@@ -105,7 +105,7 @@ class CustomGuardrail(BaseGuardrail):
 
 | Exception | Description |
 |-----------|-------------|
-| `AANFError` | Base exception for all AANF errors |
+| `keeperError` | Base exception for all keeper errors |
 | `PipelineError` | Pipeline execution error |
 | `ConfigurationError` | Invalid configuration |
 | `PolicyViolationError` | Request blocked by policy |
@@ -121,32 +121,32 @@ class CustomGuardrail(BaseGuardrail):
 ### FastAPI Middleware
 
 ```python
-from aanf.integration.fastapi_middleware import AANFMiddleware
+from keeper.integration.fastapi_middleware import keeperMiddleware
 
-app.add_middleware(AANFMiddleware, pipeline=pipeline)
+app.add_middleware(keeperMiddleware, pipeline=pipeline)
 ```
 
 ### LangChain Callback
 
 ```python
-from aanf.integration.langchain_hooks import AANFGuardrailHandler
+from keeper.integration.langchain_hooks import keeperGuardrailHandler
 
-handler = AANFGuardrailHandler(pipeline)
+handler = keeperGuardrailHandler(pipeline)
 ```
 
 ### LiteLLM Proxy Hook
 
 ```python
-from aanf.integration.litellm_proxy import aanf_pre_call_hook
+from keeper.integration.litellm_proxy import keeper_pre_call_hook
 
-litellm.pre_call_hook = aanf_pre_call_hook
+litellm.pre_call_hook = keeper_pre_call_hook
 ```
 
 ### MCP Tool
 
 ```python
-from aanf.integration.mcp_server import AANFMCPTool
+from keeper.integration.mcp_server import keeperMCPTool
 
-tool = AANFMCPTool(pipeline)
+tool = keeperMCPTool(pipeline)
 result = await tool.call("user prompt")
 ```

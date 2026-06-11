@@ -1,17 +1,17 @@
 # integration/fastapi_middleware.py
 # Drop-in ASGI middleware for FastAPI applications.
-# Intercepts every incoming request, runs the AANF pipeline,
+# Intercepts every incoming request, runs the keeper pipeline,
 # and blocks/redacts before the request reaches your route handler.
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from aanf.core.pipeline import Pipeline, RequestContext
-from aanf.core.engine import Action
+from keeper.core.pipeline import Pipeline, RequestContext
+from keeper.core.engine import Action
 
 
-class AANFMiddleware(BaseHTTPMiddleware):
-    # Plug into any FastAPI app with app.add_middleware(AANFMiddleware, pipeline=...)
+class KeeperMiddleware(BaseHTTPMiddleware):
+    # Plug into any FastAPI app with app.add_middleware(KeeperMiddleware, pipeline=...)
 
     def __init__(self, app, pipeline: Pipeline):
         super().__init__(app)
@@ -39,7 +39,7 @@ class AANFMiddleware(BaseHTTPMiddleware):
         if ctx.action in (Action.BLOCK, Action.REDACT):
             return JSONResponse(
                 status_code=403,
-                content={"error": "blocked by AANF", "reason": ctx.violations},
+                content={"error": "blocked by keeper", "reason": ctx.violations},
             )
 
         response = await call_next(request)

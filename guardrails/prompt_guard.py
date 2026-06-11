@@ -3,8 +3,8 @@
 # Runs in <1ms per prompt — serves as an early filter before
 # the heavier LLM-based semantic layer.
 
-from aanf.core.pipeline import RequestContext
-from aanf.core.engine import Action
+from keeper.core.pipeline import RequestContext
+from keeper.core.engine import Action
 
 
 class PromptGuard:

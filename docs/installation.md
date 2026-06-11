@@ -10,7 +10,7 @@
 ## Install from PyPI
 
 ```bash
-pip install aanf
+pip install keeper
 ```
 
 This installs the core framework with all required dependencies.
@@ -19,33 +19,33 @@ This installs the core framework with all required dependencies.
 
 ```bash
 # LangChain integration
-pip install aanf[langchain]
+pip install keeper[langchain]
 
 # LiteLLM proxy support
-pip install aanf[litellm]
+pip install keeper[litellm]
 
 # Semgrep code analysis
-pip install aanf[semgrep]
+pip install keeper[semgrep]
 
 # All optional integrations
-pip install aanf[all]
+pip install keeper[all]
 
 # Development tools
-pip install aanf[dev]
+pip install keeper[dev]
 ```
 
 ## Install from Source
 
 ```bash
-git clone https://github.com/anomalyco/aanf.git
-cd aanf
+git clone https://github.com/anomalyco/keeper.git
+cd keeper
 pip install -e ".[dev]"
 ```
 
 ## Verify Installation
 
 ```bash
-python -c "import aanf; print(aanf.__version__)"
+python -c "import keeper; print(keeper.__version__)"
 ```
 
 ## Build Rust Scanner (Optional)
@@ -69,6 +69,6 @@ maturin develop --release
 
 ```dockerfile
 FROM python:3.11-slim
-RUN pip install aanf
-CMD ["aanf", "--server"]
+RUN pip install keeper
+CMD ["keeper", "--server"]
 ```

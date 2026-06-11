@@ -1,10 +1,10 @@
 from fastapi import FastAPI, Request
-from aanf import build_pipeline, RequestContext
-from aanf.integration.fastapi_middleware import AANFMiddleware
+from keeper import build_pipeline, RequestContext
+from keeper.integration.fastapi_middleware import KeeperMiddleware
 
-app = FastAPI(title="My App with AANF")
+app = FastAPI(title="My App with keeper")
 pipeline = build_pipeline()
-app.add_middleware(AANFMiddleware, pipeline=pipeline)
+app.add_middleware(KeeperMiddleware, pipeline=pipeline)
 
 
 @app.post("/chat")
@@ -19,9 +19,9 @@ async def chat(req: Request):
     ctx = await pipeline.run(ctx)
     return {
         "response": "Echo: " + data.get("prompt", ""),
-        "aanf_action": ctx.action.value,
-        "aanf_risk": ctx.risk_score,
-        "aanf_violations": ctx.violations,
+        "keeper_action": ctx.action.value,
+        "keeper_risk": ctx.risk_score,
+        "keeper_violations": ctx.violations,
     }
 
 

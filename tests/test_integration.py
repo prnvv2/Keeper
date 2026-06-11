@@ -5,29 +5,29 @@ class TestFastAPIMiddleware:
     def test_middleware_init(self):
         from unittest.mock import MagicMock
 
-        from aanf.core.engine import PolicyEngine
-        from aanf.core.pipeline import Pipeline
-        from aanf.integration.fastapi_middleware import AANFMiddleware
+        from keeper.core.engine import PolicyEngine
+        from keeper.core.pipeline import Pipeline
+        from keeper.integration.fastapi_middleware import KeeperMiddleware
 
         app = MagicMock()
         engine = PolicyEngine()
         pipeline = Pipeline(engine)
-        middleware = AANFMiddleware(app, pipeline=pipeline)
+        middleware = KeeperMiddleware(app, pipeline=pipeline)
         assert middleware.pipeline is not None
 
 
 class TestLitellmProxy:
     def test_pre_call_hook_no_pipeline(self):
-        from aanf.integration.litellm_proxy import aanf_pre_call_hook, pipeline
+        from keeper.integration.litellm_proxy import keeper_pre_call_hook, pipeline
 
         original = pipeline
-        import aanf.integration.litellm_proxy as proxy
+        import keeper.integration.litellm_proxy as proxy
         proxy.pipeline = None
 
         import inspect
-        if inspect.iscoroutinefunction(aanf_pre_call_hook):
+        if inspect.iscoroutinefunction(keeper_pre_call_hook):
             import asyncio
-            asyncio.run(aanf_pre_call_hook({"messages": [{"role": "user", "content": "hi"}]}))
+            asyncio.run(keeper_pre_call_hook({"messages": [{"role": "user", "content": "hi"}]}))
 
         proxy.pipeline = original
 
@@ -35,13 +35,13 @@ class TestLitellmProxy:
 class TestMCPTool:
     @pytest.mark.asyncio
     async def test_call_returns_schema(self):
-        from aanf.core.engine import PolicyEngine
-        from aanf.core.pipeline import Pipeline
-        from aanf.integration.mcp_server import AANFMCPTool
+        from keeper.core.engine import PolicyEngine
+        from keeper.core.pipeline import Pipeline
+        from keeper.integration.mcp_server import keeperMCPTool
 
         engine = PolicyEngine()
         pipeline = Pipeline(engine)
-        tool = AANFMCPTool(pipeline)
+        tool = keeperMCPTool(pipeline)
         result = await tool.call("test prompt")
         assert "action" in result
         assert "risk_score" in result
@@ -49,14 +49,14 @@ class TestMCPTool:
         assert "allowed" in result
 
     def test_schema_property(self):
-        from aanf.core.engine import PolicyEngine
-        from aanf.core.pipeline import Pipeline
-        from aanf.integration.mcp_server import AANFMCPTool
+        from keeper.core.engine import PolicyEngine
+        from keeper.core.pipeline import Pipeline
+        from keeper.integration.mcp_server import keeperMCPTool
 
         engine = PolicyEngine()
         pipeline = Pipeline(engine)
-        tool = AANFMCPTool(pipeline)
+        tool = keeperMCPTool(pipeline)
         schema = tool.schema
-        assert schema["name"] == "aanf_guardrail"
+        assert schema["name"] == "keeper_guardrail"
         assert "inputSchema" in schema
         assert "prompt" in schema["inputSchema"]["properties"]

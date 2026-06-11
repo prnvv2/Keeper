@@ -6,7 +6,7 @@ with open(version_path) as f:
     exec(f.read())
 
 setup(
-    name="aanf",
+    name="keeper",
     version=locals().get("__version__", "0.2.0"),
     description="AI Agentic Native Firewall — Multi-layer security for LLM applications",
     long_description=(Path(__file__).parent / "README.md").read_text(),
@@ -14,7 +14,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        "aanf": ["config/policies.yaml", "py.typed"],
+        "keeper": ["config/policies.yaml", "py.typed"],
     },
     install_requires=[
         "fastapi>=0.110.0",
@@ -35,7 +35,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "aanf=aanf.main:entry_point",
+            "keeper=keeper.main:entry_point",
         ],
     },
     python_requires=">=3.10",

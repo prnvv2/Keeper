@@ -2,23 +2,23 @@ import asyncio
 import logging
 import sys
 
-from aanf.core.engine import PolicyEngine
-from aanf.core.pipeline import Pipeline, RequestContext
+from keeper.core.engine import PolicyEngine
+from keeper.core.pipeline import Pipeline, RequestContext
 
-from aanf.layers.network import NetworkLayer
-from aanf.layers.syntactic import SyntacticLayer
-from aanf.layers.semantic import SemanticLayer
-from aanf.layers.context import ContextLayer
+from keeper.layers.network import NetworkLayer
+from keeper.layers.syntactic import SyntacticLayer
+from keeper.layers.semantic import SemanticLayer
+from keeper.layers.context import ContextLayer
 
-from aanf.guardrails.prompt_guard import PromptGuard
-from aanf.guardrails.alignment_check import AlignmentCheck
-from aanf.guardrails.code_shield import CodeShield
+from keeper.guardrails.prompt_guard import PromptGuard
+from keeper.guardrails.alignment_check import AlignmentCheck
+from keeper.guardrails.code_shield import CodeShield
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
-logger = logging.getLogger("aanf")
+logger = logging.getLogger("keeper")
 
 
 def build_pipeline() -> Pipeline:
@@ -38,7 +38,7 @@ def build_pipeline() -> Pipeline:
 
 async def run_cli():
     pipeline = build_pipeline()
-    logger.info("AANF ready. Type prompts or 'quit'.")
+    logger.info("keeper ready. Type prompts or 'quit'.")
 
     while True:
         prompt = input("\n>>> ")
@@ -57,11 +57,11 @@ async def run_cli():
 
 def run_server():
     from fastapi import FastAPI, Request
-    from aanf.integration.fastapi_middleware import AANFMiddleware
+    from keeper.integration.fastapi_middleware import keeperMiddleware
 
-    app = FastAPI(title="AANF")
+    app = FastAPI(title="keeper")
     pipeline = build_pipeline()
-    app.add_middleware(AANFMiddleware, pipeline=pipeline)
+    app.add_middleware(keeperMiddleware, pipeline=pipeline)
 
     @app.post("/chat")
     async def chat(req: Request):

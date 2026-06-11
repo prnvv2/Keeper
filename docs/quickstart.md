@@ -4,7 +4,7 @@
 
 ```python
 import asyncio
-from aanf import build_pipeline, RequestContext
+from keeper import build_pipeline, RequestContext
 
 async def main():
     pipeline = build_pipeline()
@@ -26,13 +26,13 @@ asyncio.run(main())
 ## 2. CLI Mode
 
 ```bash
-python -m aanf
+python -m keeper
 ```
 
 ## 3. Server Mode
 
 ```bash
-python -m aanf --server
+python -m keeper --server
 ```
 
 Test with curl:
@@ -47,23 +47,23 @@ curl -X POST http://localhost:8000/chat \
 
 ```python
 from fastapi import FastAPI
-from aanf import build_pipeline
-from aanf.integration.fastapi_middleware import AANFMiddleware
+from keeper import build_pipeline
+from keeper.integration.fastapi_middleware import keeperMiddleware
 
 app = FastAPI()
 pipeline = build_pipeline()
-app.add_middleware(AANFMiddleware, pipeline=pipeline)
+app.add_middleware(keeperMiddleware, pipeline=pipeline)
 ```
 
 ## 5. LangChain Integration
 
 ```python
 from langchain.agents import create_react_agent
-from aanf import build_pipeline
-from aanf.integration.langchain_hooks import AANFGuardrailHandler
+from keeper import build_pipeline
+from keeper.integration.langchain_hooks import keeperGuardrailHandler
 
 pipeline = build_pipeline()
-handler = AANFGuardrailHandler(pipeline)
+handler = keeperGuardrailHandler(pipeline)
 # Pass handler to your LangChain agent
 ```
 
@@ -71,9 +71,9 @@ handler = AANFGuardrailHandler(pipeline)
 
 ```python
 import litellm
-from aanf import build_pipeline
-from aanf.integration.litellm_proxy import aanf_pre_call_hook
+from keeper import build_pipeline
+from keeper.integration.litellm_proxy import keeper_pre_call_hook
 
-aanf_pipeline = build_pipeline()
-litellm.pre_call_hook = aanf_pre_call_hook
+keeper_pipeline = build_pipeline()
+litellm.pre_call_hook = keeper_pre_call_hook
 ```

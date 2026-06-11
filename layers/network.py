@@ -3,9 +3,9 @@
 # before any semantic processing. Prevents DoS and brute-force probing.
 
 import time
-from aanf.layers.base import BaseLayer
-from aanf.core.pipeline import RequestContext
-from aanf.core.engine import Action
+from keeper.layers.base import BaseLayer
+from keeper.core.pipeline import RequestContext
+from keeper.core.engine import Action
 
 
 class NetworkLayer(BaseLayer):

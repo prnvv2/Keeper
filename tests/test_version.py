@@ -1,4 +1,4 @@
-from aanf.version import VERSION_INFO, __version__, get_version, get_version_info
+from keeper.version import VERSION_INFO, __version__, get_version, get_version_info
 
 
 class TestVersion:

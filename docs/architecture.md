@@ -2,7 +2,7 @@
 
 ## Pipeline Design
 
-AANF uses a sequential pipeline architecture where each layer independently evaluates a request:
+keeper uses a sequential pipeline architecture where each layer independently evaluates a request:
 
 ```
 User Request
@@ -34,7 +34,7 @@ User Request
 ## Core Components
 
 ```
-aanf/
+keeper/
 ├── core/           # PolicyEngine, Pipeline, RequestContext, Exceptions
 ├── layers/         # Security layers (network, syntactic, semantic, context)
 ├── guardrails/     # Pluggable guardrails (PromptGuard, AlignmentCheck, CodeShield)

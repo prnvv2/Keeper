@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aanf"
+name = "keeper"
 version = "0.2.0"
 description = "AI Agentic Native Firewall — Multi-layer security for LLM applications"
 readme = "README.md"
@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 license = {text = "MIT"}
 keywords = ["llm-security", "ai-firewall", "guardrails", "jailbreak-detection", "prompt-security"]
 authors = [
-    {name = "AANF Contributors"},
+    {name = "keeper Contributors"},
 ]
 
 classifiers = [
@@ -54,37 +54,37 @@ dev = [
     "pre-commit>=3.0",
 ]
 all = [
-    "aanf[semgrep,langchain,litellm,rust,dev]",
+    "keeper[semgrep,langchain,litellm,rust,dev]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/anomalyco/aanf"
-Repository = "https://github.com/anomalyco/aanf"
-Documentation = "https://aanf.readthedocs.io"
-Issues = "https://github.com/anomalyco/aanf/issues"
+Homepage = "https://github.com/anomalyco/keeper"
+Repository = "https://github.com/anomalyco/keeper"
+Documentation = "https://keeper.readthedocs.io"
+Issues = "https://github.com/anomalyco/keeper/issues"
 
-[project.entry-points."aanf.plugins.layers"]
-network = "aanf.layers.network:NetworkLayer"
-syntactic = "aanf.layers.syntactic:SyntacticLayer"
-semantic = "aanf.layers.semantic:SemanticLayer"
-context = "aanf.layers.context:ContextLayer"
+[project.entry-points."keeper.plugins.layers"]
+network = "keeper.layers.network:NetworkLayer"
+syntactic = "keeper.layers.syntactic:SyntacticLayer"
+semantic = "keeper.layers.semantic:SemanticLayer"
+context = "keeper.layers.context:ContextLayer"
 
-[project.entry-points."aanf.plugins.guardrails"]
-prompt_guard = "aanf.guardrails.prompt_guard:PromptGuard"
-alignment_check = "aanf.guardrails.alignment_check:AlignmentCheck"
-code_shield = "aanf.guardrails.code_shield:CodeShield"
+[project.entry-points."keeper.plugins.guardrails"]
+prompt_guard = "keeper.guardrails.prompt_guard:PromptGuard"
+alignment_check = "keeper.guardrails.alignment_check:AlignmentCheck"
+code_shield = "keeper.guardrails.code_shield:CodeShield"
 
-[project.entry-points."aanf.plugins.integrations"]
-fastapi = "aanf.integration.fastapi_middleware:AANFMiddleware"
-litellm = "aanf.integration.litellm_proxy:aanf_pre_call_hook"
-langchain = "aanf.integration.langchain_hooks:AANFGuardrailHandler"
-mcp = "aanf.integration.mcp_server:AANFMCPTool"
+[project.entry-points."keeper.plugins.integrations"]
+fastapi = "keeper.integration.fastapi_middleware:keeperMiddleware"
+litellm = "keeper.integration.litellm_proxy:keeper_pre_call_hook"
+langchain = "keeper.integration.langchain_hooks:keeperGuardrailHandler"
+mcp = "keeper.integration.mcp_server:keeperMCPTool"
 
 [project.scripts]
-aanf = "aanf.main:entry_point"
+keeper = "keeper.main:entry_point"
 
 [tool.setuptools.packages.find]
-include = ["aanf*"]
+include = ["keeper*"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
@@ -113,7 +113,7 @@ ignore_missing_imports = true
 disallow_untyped_defs = false
 
 [tool.coverage.run]
-source = ["aanf"]
+source = ["keeper"]
 omit = ["*/tests/*", "*/venv/*"]
 
 [tool.coverage.report]

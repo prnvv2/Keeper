@@ -44,12 +44,12 @@ jobs:
         run: black --check .
 
       - name: Type check with mypy
-        run: mypy aanf/ --ignore-missing-imports
+        run: mypy keeper/ --ignore-missing-imports
         continue-on-error: true
 
       - name: Test with pytest
         run: python -m pytest tests/ -v --tb=short --asyncio-mode=auto -x -q
 
       - name: Test with coverage
-        run: python -m pytest tests/ --asyncio-mode=auto --cov=aanf --cov-report=term-missing -x -q
+        run: python -m pytest tests/ --asyncio-mode=auto --cov=keeper --cov-report=term-missing -x -q
         continue-on-error: true

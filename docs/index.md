@@ -1,4 +1,4 @@
-# AANF Documentation
+# keeper Documentation
 
 **AI Agentic Native Firewall** — Multi-layer security for LLM applications and AI agents.
 
@@ -12,9 +12,9 @@
 - [Developer Guide](developer_guide.md)
 - [Plugin Guide](plugin_guide.md)
 
-## What is AANF?
+## What is keeper?
 
-AANF is a modular, multi-layer security firewall that intercepts every prompt, tool call, and agent output, enforcing security policy through a chain of independent layers:
+keeper is a modular, multi-layer security firewall that intercepts every prompt, tool call, and agent output, enforcing security policy through a chain of independent layers:
 
 | Layer | Type | Detection |
 |-------|------|-----------|
@@ -29,7 +29,7 @@ AANF is a modular, multi-layer security firewall that intercepts every prompt, t
 ## Installation
 
 ```bash
-pip install aanf
+pip install keeper
 ```
 
 Requires Python 3.10+ and [Ollama](https://ollama.com) for semantic analysis features.
@@ -37,7 +37,7 @@ Requires Python 3.10+ and [Ollama](https://ollama.com) for semantic analysis fea
 ## Quick Start
 
 ```python
-from aanf import build_pipeline
+from keeper import build_pipeline
 
 pipeline = build_pipeline()
 ```

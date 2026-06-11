@@ -1,16 +1,16 @@
 import importlib.metadata
 import logging
 
-from aanf.core.exceptions import PluginLoadError
-from aanf.layers.base import BaseLayer
-from aanf.guardrails.base import BaseGuardrail
+from keeper.core.exceptions import PluginLoadError
+from keeper.layers.base import BaseLayer
+from keeper.guardrails.base import BaseGuardrail
 
-logger = logging.getLogger("aanf.plugins")
+logger = logging.getLogger("keeper.plugins")
 
 
 def discover_layers() -> dict[str, type[BaseLayer]]:
     layers = {}
-    for ep in importlib.metadata.entry_points(group="aanf.plugins.layers"):
+    for ep in importlib.metadata.entry_points(group="keeper.plugins.layers"):
         try:
             cls = ep.load()
             layers[ep.name] = cls
@@ -21,7 +21,7 @@ def discover_layers() -> dict[str, type[BaseLayer]]:
 
 def discover_guardrails() -> dict[str, type[BaseGuardrail]]:
     guardrails = {}
-    for ep in importlib.metadata.entry_points(group="aanf.plugins.guardrails"):
+    for ep in importlib.metadata.entry_points(group="keeper.plugins.guardrails"):
         try:
             cls = ep.load()
             guardrails[ep.name] = cls
@@ -32,7 +32,7 @@ def discover_guardrails() -> dict[str, type[BaseGuardrail]]:
 
 def discover_integrations() -> dict[str, type]:
     integrations = {}
-    for ep in importlib.metadata.entry_points(group="aanf.plugins.integrations"):
+    for ep in importlib.metadata.entry_points(group="keeper.plugins.integrations"):
         try:
             integrations[ep.name] = ep.load()
         except Exception as exc:

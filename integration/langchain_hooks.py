@@ -5,11 +5,11 @@
 
 from typing import Any, Dict, List
 from langchain_core.callbacks import BaseCallbackHandler
-from aanf.core.pipeline import Pipeline, RequestContext
-from aanf.core.engine import Action
+from keeper.core.pipeline import Pipeline, RequestContext
+from keeper.core.engine import Action
 
 
-class AANFGuardrailHandler(BaseCallbackHandler):
+class keeperGuardrailHandler(BaseCallbackHandler):
     # LangChain calls on_llm_start before each LLM call,
     # and on_tool_end after each tool returns.
 
@@ -22,11 +22,11 @@ class AANFGuardrailHandler(BaseCallbackHandler):
             ctx = RequestContext(prompt=prompt)
             ctx = await self.pipeline.run(ctx)
             if ctx.action in (Action.BLOCK, Action.REDACT):
-                raise ValueError(f"AANF blocked LLM call: {ctx.violations}")
+                raise ValueError(f"keeper blocked LLM call: {ctx.violations}")
 
     async def on_tool_end(self, output: str, **kwargs):
         # Scan tool outputs for injected instructions or unsafe code.
         ctx = RequestContext(prompt="", metadata={"generated_code": output})
         ctx = await self.pipeline.run(ctx)
         if ctx.action in (Action.BLOCK, Action.REDACT):
-            raise ValueError(f"AANF blocked tool output: {ctx.violations}")
+            raise ValueError(f"keeper blocked tool output: {ctx.violations}")

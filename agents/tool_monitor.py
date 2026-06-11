@@ -5,8 +5,8 @@
 # reach the agent's next reasoning step.
 
 import re
-from aanf.core.pipeline import RequestContext
-from aanf.core.engine import Action
+from keeper.core.pipeline import RequestContext
+from keeper.core.engine import Action
 
 
 # Regex patterns for common injection phrases in tool outputs

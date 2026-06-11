@@ -3,8 +3,8 @@
 ## Project Setup
 
 ```bash
-git clone https://github.com/anomalyco/aanf.git
-cd aanf
+git clone https://github.com/anomalyco/keeper.git
+cd keeper
 pip install -e ".[dev]"
 ```
 
@@ -15,22 +15,22 @@ pip install -e ".[dev]"
 pytest tests/ --asyncio-mode=auto -v
 
 # Run tests with coverage
-pytest tests/ --asyncio-mode=auto --cov=aanf --cov-report=term-missing
+pytest tests/ --asyncio-mode=auto --cov=keeper --cov-report=term-missing
 
 # Lint
-ruff check aanf/
+ruff check keeper/
 
 # Format
-black aanf/
+black keeper/
 
 # Type check
-mypy aanf/ --ignore-missing-imports
+mypy keeper/ --ignore-missing-imports
 ```
 
 ## Project Structure
 
 ```
-aanf/
+keeper/
 ├── core/           # Pipeline orchestration and policy
 ├── layers/         # Security layers
 ├── guardrails/     # Pluggable guardrails
@@ -51,8 +51,8 @@ aanf/
 4. Register it in `build_pipeline()` or via plugins
 
 ```python
-from aanf import BaseLayer, RequestContext
-from aanf.core.engine import Action
+from keeper import BaseLayer, RequestContext
+from keeper.core.engine import Action
 
 class MyLayer(BaseLayer):
     name = "my_layer"
@@ -67,8 +67,8 @@ class MyLayer(BaseLayer):
 ## Adding a New Guardrail
 
 ```python
-from aanf import BaseGuardrail, RequestContext
-from aanf.core.engine import Action
+from keeper import BaseGuardrail, RequestContext
+from keeper.core.engine import Action
 
 class MyGuardrail(BaseGuardrail):
     name = "my_guardrail"
@@ -110,7 +110,7 @@ The project includes GitHub Actions workflows:
 
 ## Versioning
 
-AANF follows [Semantic Versioning](https://semver.org/):
+keeper follows [Semantic Versioning](https://semver.org/):
 
 - **MAJOR** (x.0.0): Breaking API changes
 - **MINOR** (0.x.0): New features, backward compatible

@@ -1,4 +1,4 @@
-// Rust pattern definitions for the AANF scanner.
+// Rust pattern definitions for the keeper scanner.
 // Each Rule has a regex pattern and a severity score (0-1).
 // These are compiled once at startup for maximum throughput.
 

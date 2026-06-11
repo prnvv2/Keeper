@@ -4,10 +4,10 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-from aanf.core.engine import PolicyEngine, Action
-from aanf.core.exceptions import LayerNotRegisteredError
+from keeper.core.engine import PolicyEngine, Action
+from keeper.core.exceptions import LayerNotRegisteredError
 
-logger = logging.getLogger("aanf.pipeline")
+logger = logging.getLogger("keeper.pipeline")
 
 
 @dataclass

@@ -1,5 +1,5 @@
-include aanf/config/policies.yaml
-include aanf/py.typed
+include keeper/config/policies.yaml
+include keeper/py.typed
 include LICENSE
 include README.md
-recursive-include aanf/scanner *
+recursive-include keeper/scanner *
