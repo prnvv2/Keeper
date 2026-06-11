@@ -9,7 +9,7 @@ from keeper.core.pipeline import Pipeline, RequestContext
 from keeper.core.engine import Action
 
 
-class keeperGuardrailHandler(BaseCallbackHandler):
+class KeeperGuardrailHandler(BaseCallbackHandler):
     # LangChain calls on_llm_start before each LLM call,
     # and on_tool_end after each tool returns.
 
