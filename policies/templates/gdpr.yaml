@@ -1,0 +1,77 @@
+# GDPR-oriented starting template.
+#
+# THIS IS NOT A COMPLIANCE GUARANTEE. It is a starting point your data
+# protection officer adapts. GDPR compliance is a property of your whole
+# processing activity — lawful basis, retention, subject rights, transfers —
+# not of a firewall policy. What this template does is make the AI-traffic
+# slice of it enforceable and auditable.
+#
+# Pair it with these SDK settings, which matter more than the rules below:
+#     KEEPER_REDACTION_MODE=hash_only    # no personal data in the audit store
+#     KEEPER_REDACTION_SALT=<random>     # or digests do not correlate
+# and with a control-plane retention period your policy actually permits.
+
+id: keeper.template.gdpr
+version: 1.0.0
+description: >
+  Starting template for AI traffic under GDPR: minimise personal data reaching
+  the model, keep an auditable record of every decision, and make cross-border
+  model use an explicit choice.
+
+defaults:
+  action: allow
+
+detectors:
+  pii:
+    action: redact
+    options:
+      # Article 9 special categories. Blocked outright rather than redacted:
+      # the lawful bases are narrower and a redaction miss is not recoverable.
+      block_entities: [medical_record, us_ssn]
+
+rules:
+  - id: gdpr-block-special-category
+    description: Art. 9 special-category data must not reach a general-purpose model.
+    when:
+      label: [medical_record, us_ssn, date_of_birth]
+    action: block
+    severity: critical
+    message: This request contains special-category personal data and cannot be processed by this assistant.
+
+  - id: gdpr-minimise-personal-data
+    description: Art. 5(1)(c) data minimisation — strip what the model does not need.
+    when:
+      detector_fired: pii
+    action: redact
+    severity: medium
+    stop: false
+
+  - id: gdpr-block-credentials
+    when:
+      detector_fired: [secrets, secret_leakage]
+    action: block
+    severity: critical
+    message: This request contains credential material and was blocked.
+
+  - id: gdpr-flag-cross-border-model
+    description: >
+      Art. 44 transfers. Set tags.data_region in the SDK context, and this
+      flags personal data heading to a model outside your permitted region.
+    when:
+      all:
+        - detector_fired: pii
+        - not:
+            tag: {data_region: [eu, eea]}
+    action: flag
+    severity: high
+    stop: false
+
+  - id: gdpr-redact-output-personal-data
+    description: Art. 5(1)(f) integrity and confidentiality — personal data in a response.
+    when:
+      all:
+        - stage: output
+        - detector_fired: pii
+    action: redact
+    severity: medium
+    stop: false

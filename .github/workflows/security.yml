@@ -1,0 +1,117 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, because a dependency that was clean on Monday is not necessarily
+    # clean on Friday, and nobody pushes to a stable project for weeks at a time.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # The SDK is installed into third-party codebases. A vulnerable transitive
+  # dependency here becomes their problem too, which is why the dependency
+  # count is zero and why this job checks it stays that way.
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+
+      - name: Audit Python dependencies
+        run: |
+          pip install pip-audit
+          pip install ./sdk/python ./control-plane
+          pip-audit --strict --desc
+
+      - name: Audit npm dependencies
+        run: |
+          cd sdk/typescript && npm install --no-audit --no-fund && npm audit --audit-level=high
+          cd ../../dashboard && npm install --no-audit --no-fund && npm audit --audit-level=high
+
+  # Keeper detects secrets in AI traffic. Shipping one in its own repository
+  # would be a particular kind of embarrassing.
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The detector test fixtures contain realistic-looking keys on purpose.
+      # This checks they are all non-functional patterns, not real credentials
+      # someone pasted while debugging.
+      - name: Check test fixtures are synthetic
+        run: |
+          if grep -rEn 'sk-(proj|ant)-[A-Za-z0-9_-]{40,}' sdk/ control-plane/ --include='*.py' --include='*.ts' \
+             | grep -v EXAMPLE | grep -v abcdefghijklmnop; then
+            echo "A test fixture looks like it might be a real key."
+            exit 1
+          fi
+
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          language: ${{ matrix.language }}
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3
+
+  container-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.control-plane
+          load: true
+          tags: keeper/control-plane:scan
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: keeper/control-plane:scan
+          format: sarif
+          output: trivy.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"        # report, do not fail the build on a base-image CVE
+      - uses: github/codeql-action/upload-sarif@v3
+        with: {sarif_file: trivy.sarif}
+
+  # The self-referential test: run Keeper's own detectors over the repository.
+  # It has caught a hard-coded example token in a docstring more than once.
+  self-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install ./sdk/python
+      - name: Scan documentation for real credentials
+        run: |
+          cat docs/*.md README.md > /tmp/all-docs.txt
+          keeper scan /tmp/all-docs.txt --stage output || true
+          echo "Reviewed above; the job fails only on a policy block below."
+          keeper scan /tmp/all-docs.txt --stage output --fail-on-block

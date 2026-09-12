@@ -1,0 +1,274 @@
+# Keeper control plane and dashboard on Kubernetes.
+#
+#   kubectl apply -f deploy/k8s/keeper.yaml
+#
+# Plain manifests rather than a Helm chart, deliberately: a reader can see
+# exactly what is applied, and kustomize handles environment differences. A
+# chart is a reasonable addition once these stabilise.
+#
+# Before applying, replace the placeholder secret values. In a real cluster use
+# an External Secrets Operator or sealed-secrets rather than committing these.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keeper
+  labels:
+    app.kubernetes.io/name: keeper
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keeper-secrets
+  namespace: keeper
+type: Opaque
+stringData:
+  # kubectl create secret generic keeper-secrets -n keeper \
+  #   --from-literal=ingest-api-keys="$(openssl rand -hex 32)" ...
+  ingest-api-keys: "REPLACE_ME"
+  admin-api-keys: "REPLACE_ME"
+  session-secret: "REPLACE_ME"
+  database-url: "postgresql+psycopg://keeper:REPLACE_ME@postgres.keeper.svc.cluster.local:5432/keeper"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keeper-config
+  namespace: keeper
+data:
+  KEEPER_CP_ENVIRONMENT: "production"
+  KEEPER_CP_LOG_LEVEL: "info"
+  KEEPER_CP_RETENTION_DAYS: "90"
+  KEEPER_CP_ALERTING_ENABLED: "true"
+  KEEPER_CP_ANOMALY_ENABLED: "true"
+  KEEPER_CP_SIEM_ENABLED: "false"
+  KEEPER_CP_CORS_ORIGINS: "https://keeper.internal.example.com"
+  KEEPER_CP_MAX_EVENTS_PER_BATCH: "500"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keeper-control-plane
+  namespace: keeper
+  labels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: control-plane}
+spec:
+  # Safe to run more than one: every background job tolerates concurrency, and
+  # the worst case is duplicate alert evaluation, which cooldowns absorb.
+  replicas: 2
+  selector:
+    matchLabels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: control-plane}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: control-plane}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: control-plane
+          image: keeper/control-plane:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports: [{name: http, containerPort: 8080}]
+          envFrom: [{configMapRef: {name: keeper-config}}]
+          env:
+            - {name: KEEPER_CP_DATABASE_URL,   valueFrom: {secretKeyRef: {name: keeper-secrets, key: database-url}}}
+            - {name: KEEPER_CP_INGEST_API_KEYS, valueFrom: {secretKeyRef: {name: keeper-secrets, key: ingest-api-keys}}}
+            - {name: KEEPER_CP_ADMIN_API_KEYS,  valueFrom: {secretKeyRef: {name: keeper-secrets, key: admin-api-keys}}}
+            - {name: KEEPER_CP_SESSION_SECRET,  valueFrom: {secretKeyRef: {name: keeper-secrets, key: session-secret}}}
+          # Liveness deliberately does not touch the database: a probe that
+          # fails on a database outage kills the process, which does not fix
+          # the database and does lose the in-flight ingest queue.
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          startupProbe:
+            httpGet: {path: /healthz, port: http}
+            failureThreshold: 30
+            periodSeconds: 2
+          resources:
+            requests: {cpu: 200m, memory: 256Mi}
+            limits:   {cpu: "2",  memory: 1Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp,   mountPath: /tmp}
+            - {name: state, mountPath: /var/lib/keeper}
+      volumes:
+        - {name: tmp,   emptyDir: {sizeLimit: 64Mi}}
+        - {name: state, emptyDir: {sizeLimit: 256Mi}}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: control-plane}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keeper-control-plane
+  namespace: keeper
+  labels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: control-plane}
+spec:
+  selector: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: control-plane}
+  ports: [{name: http, port: 8080, targetPort: http}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keeper-dashboard
+  namespace: keeper
+  labels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: dashboard}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: dashboard}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: dashboard}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101          # nginx in nginx:alpine
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: dashboard
+          image: keeper/dashboard:0.1.0
+          ports: [{name: http, containerPort: 8081}]
+          readinessProbe:
+            httpGet: {path: /, port: http}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits:   {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: cache, mountPath: /var/cache/nginx}
+            - {name: run,   mountPath: /var/run}
+            - {name: tmp,   mountPath: /tmp}
+      volumes:
+        - {name: cache, emptyDir: {sizeLimit: 32Mi}}
+        - {name: run,   emptyDir: {sizeLimit: 8Mi}}
+        - {name: tmp,   emptyDir: {sizeLimit: 16Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keeper-dashboard
+  namespace: keeper
+spec:
+  selector: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: dashboard}
+  ports: [{name: http, port: 8081, targetPort: http}]
+---
+# The dashboard proxies /api to the control plane, so a single host serves
+# both and the browser never makes a cross-origin request.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keeper
+  namespace: keeper
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"   # matches max_body_bytes
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [keeper.internal.example.com]
+      secretName: keeper-tls
+  rules:
+    - host: keeper.internal.example.com
+      http:
+        paths:
+          - {path: /v1,  pathType: Prefix, backend: {service: {name: keeper-control-plane, port: {number: 8080}}}}
+          - {path: /api, pathType: Prefix, backend: {service: {name: keeper-control-plane, port: {number: 8080}}}}
+          - {path: /docs, pathType: Prefix, backend: {service: {name: keeper-control-plane, port: {number: 8080}}}}
+          - {path: /,    pathType: Prefix, backend: {service: {name: keeper-dashboard,     port: {number: 8081}}}}
+---
+# Default-deny egress for the control plane: it needs Postgres, DNS, and
+# whatever SIEM/alert targets are configured. Nothing else.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keeper-control-plane
+  namespace: keeper
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: control-plane}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: ingress-nginx}}
+        - podSelector: {matchLabels: {app.kubernetes.io/name: keeper}}
+        # SDK instances live in application namespaces; label them to allow.
+        - namespaceSelector: {matchLabels: {keeper.io/sdk-client: "true"}}
+      ports: [{protocol: TCP, port: 8080}]
+  egress:
+    - to: [{podSelector: {matchLabels: {app: postgres}}}]
+      ports: [{protocol: TCP, port: 5432}]
+    - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}}]
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    # Widen this only for the SIEM and alert endpoints you actually configure.
+    - to: [{ipBlock: {cidr: 0.0.0.0/0, except: [169.254.169.254/32]}}]
+      ports: [{protocol: TCP, port: 443}]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: keeper-control-plane
+  namespace: keeper
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: control-plane}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: keeper-control-plane
+  namespace: keeper
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: keeper-control-plane}
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+---
+# Prometheus Operator. Drop this document if you scrape by annotation instead.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: keeper-control-plane
+  namespace: keeper
+  labels: {release: prometheus}
+spec:
+  selector:
+    matchLabels: {app.kubernetes.io/name: keeper, app.kubernetes.io/component: control-plane}
+  endpoints:
+    - {port: http, path: /metrics, interval: 30s}

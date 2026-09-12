@@ -1,0 +1,73 @@
+# HIPAA-oriented starting template.
+#
+# THIS IS NOT A COMPLIANCE GUARANTEE, and it is not a substitute for a Business
+# Associate Agreement with your model provider. Without a BAA in place, PHI must
+# not reach that provider at all — which is what the first rule enforces.
+#
+# Pair with:
+#     KEEPER_REDACTION_MODE=none         # no PHI in the audit store at all
+#     KEEPER_CP_RETENTION_DAYS=2190      # six years, if your policy requires it
+# and enable access control so every access is attributable to a person.
+
+id: keeper.template.hipaa
+version: 1.0.0
+description: >
+  Starting template for AI traffic handling protected health information:
+  block PHI to any model not covered by a BAA, attribute every access, and
+  retain a complete decision record.
+
+defaults:
+  action: allow
+
+detectors:
+  pii:
+    action: block
+    options:
+      block_entities: [medical_record, us_ssn, date_of_birth, passport]
+
+rules:
+  - id: hipaa-block-phi-to-uncovered-model
+    description: >
+      PHI may only reach a model covered by a BAA. Tag those models in the SDK
+      context with baa=true; everything else is refused.
+    when:
+      all:
+        - detector_fired: pii
+        - not:
+            tag: {baa: [true, "true"]}
+    action: block
+    severity: critical
+    message: This request appears to contain protected health information and cannot be sent to this model.
+
+  - id: hipaa-block-identifiers
+    description: Safe-harbour identifiers, blocked rather than redacted.
+    when:
+      label: [medical_record, us_ssn, date_of_birth, passport, iban, credit_card]
+    action: block
+    severity: critical
+    message: This request contains protected identifiers and was blocked.
+
+  - id: hipaa-require-authentication
+    description: >
+      Minimum-necessary and accountability both require knowing who is asking.
+      Anonymous access to a PHI-handling assistant is refused.
+    when:
+      authenticated: false
+    action: block
+    severity: high
+    message: Authentication is required to use this assistant.
+
+  - id: hipaa-block-credentials
+    when:
+      detector_fired: [secrets, secret_leakage]
+    action: block
+    severity: critical
+
+  - id: hipaa-block-phi-in-output
+    when:
+      all:
+        - stage: output
+        - detector_fired: pii
+    action: block
+    severity: critical
+    message: The response was withheld because it appeared to contain protected health information.

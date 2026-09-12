@@ -1,0 +1,51 @@
+# Control plane image.
+#
+# Multi-stage so the runtime layer carries no build toolchain, and non-root
+# with a read-only-friendly layout so the hardening in docs/deployment.md
+# (readOnlyRootFilesystem, dropped capabilities) works without patching this
+# file.
+
+FROM python:3.12-slim AS builder
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1
+WORKDIR /build
+
+# The control plane depends on the SDK package for policy parsing, so both are
+# copied and installed together.
+COPY sdk/python /build/sdk/python
+COPY control-plane /build/control-plane
+
+RUN python -m venv /opt/venv \
+ && /opt/venv/bin/pip install --upgrade pip \
+ && /opt/venv/bin/pip install ./sdk/python \
+ && /opt/venv/bin/pip install ./control-plane "psycopg[binary]>=3.1"
+
+FROM python:3.12-slim AS runtime
+
+# Non-root from the start; the numeric id is fixed so a Kubernetes
+# runAsUser matches without guessing.
+RUN groupadd --gid 10001 keeper \
+ && useradd --uid 10001 --gid keeper --create-home --shell /usr/sbin/nologin keeper
+
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    KEEPER_CP_HOST=0.0.0.0 \
+    KEEPER_CP_PORT=8080
+
+COPY --from=builder /opt/venv /opt/venv
+
+# Writable state lives here and nowhere else, so the root filesystem can be
+# mounted read-only.
+RUN mkdir -p /var/lib/keeper && chown keeper:keeper /var/lib/keeper
+VOLUME ["/var/lib/keeper"]
+WORKDIR /var/lib/keeper
+
+USER 10001:10001
+EXPOSE 8080
+
+# Liveness deliberately does not touch the database — see docs/observability.md.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).status==200 else 1)"
+
+ENTRYPOINT ["python", "-m", "uvicorn", "keeper_control.app:app", "--host", "0.0.0.0", "--port", "8080"]

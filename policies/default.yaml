@@ -1,0 +1,196 @@
+# Keeper default policy — a starting point, annotated.
+#
+# Copy this, edit it, publish it. Validate before you do:
+#     keeper policy validate policies/default.yaml
+#
+# And before enforcing a change, replay it against traffic you have already
+# recorded, so you find out what it does before your users do:
+#     keeper policy dry-run policies/default.yaml --events audit.jsonl
+#
+# Rules are evaluated in order. The first rule with `stop: true` (the default)
+# that matches ends evaluation. Detector findings and policy rules are then
+# combined by escalation — the most severe action wins — so a rule cannot make
+# an interaction *less* restricted than a detector already decided.
+
+id: keeper.default
+version: 1.0.0
+description: >
+  Balanced starting policy: block credential egress and confirmed attacks,
+  redact personal data rather than failing the request, flag the rest for
+  review.
+
+defaults:
+  # What happens when no rule matches. `allow` is right for almost everyone:
+  # the detectors have already had their say, and `block` here means blocking
+  # every unmatched interaction, which is a very short conversation with your
+  # users.
+  action: allow
+
+# ---------------------------------------------------------------------------
+# Detector tuning, distributed fleet-wide.
+#
+# A policy may tune a detector. It deliberately CANNOT enable one an operator
+# disabled locally — the control plane must not be able to switch on code
+# inside someone else's process.
+# ---------------------------------------------------------------------------
+detectors:
+  prompt_injection:
+    threshold: 0.6          # lower catches more and blocks more
+  pii:
+    action: redact
+  trajectory:
+    threshold: 0.65
+
+# ---------------------------------------------------------------------------
+# Rate limits. Scopes are charged narrowest-first; a request rejected by one
+# scope refunds the ones already charged.
+#
+# Local buckets are per SDK instance. For genuine fleet-wide quota, enable
+# access_control.distributed — see architecture.md §7 for the honest account
+# of what that does and does not guarantee.
+# ---------------------------------------------------------------------------
+rate_limits:
+  "*":            {rpm: 600,  burst: 60}
+  "role:service": {rpm: 6000, burst: 300}
+
+# ---------------------------------------------------------------------------
+# Model and tool access by role. Omit these entirely if you do not want Keeper
+# governing access — an empty set means Keeper abstains rather than denying
+# everything.
+#
+# A leading "!" denies, and deny always wins.
+# ---------------------------------------------------------------------------
+# model_access:
+#   analyst: ["gpt-4o-mini", "claude-*", "!finance-*"]
+#   admin:   ["*"]
+# tool_access:
+#   analyst: ["crm.lookup", "db.query", "!shell.*", "!payment.*"]
+
+rules:
+  # -- credentials -----------------------------------------------------------
+  - id: block-credential-egress
+    description: >
+      Never let live credential material reach a model provider, and never let
+      it come back out. There is no legitimate case for either.
+    when:
+      detector_fired: [secrets, secret_leakage]
+    action: block
+    severity: critical
+    message: This request contains credential material and was blocked.
+
+  # -- injection -------------------------------------------------------------
+  - id: block-indirect-injection
+    description: >
+      Instructions found inside retrieved documents, tool results, or memory
+      writes. Higher confidence than the direct case, because that content has
+      no business issuing instructions at all.
+    when:
+      all:
+        - detector_fired: prompt_injection
+        - stage: [retrieval, tool_result, memory_write]
+    action: block
+    severity: critical
+    message: Untrusted content in this request contained embedded instructions and was rejected.
+
+  - id: block-direct-injection
+    description: A confirmed prompt injection or jailbreak attempt from the user.
+    when:
+      detector_fired: prompt_injection
+      severity_at_least: high
+    action: block
+    severity: high
+    message: This request was identified as a prompt injection attempt.
+
+  # -- agent safety ----------------------------------------------------------
+  - id: block-unsafe-tool-flow
+    description: >
+      Low-authority content driving a privileged tool call, or a memory whose
+      provenance does not support the action it is being used to authorise.
+    when:
+      any:
+        - {detector_fired: token_flow, severity_at_least: high}
+        - {category: memory_provenance_laundering}
+        - {category: excessive_agency}
+    action: block
+    severity: critical
+    message: This action was not authorised by a sufficiently trusted source.
+
+  # -- multi-turn ------------------------------------------------------------
+  - id: block-multi-turn-escalation
+    description: >
+      Refusal grinding, topic drift, or a decomposed objective across turns.
+      Invisible to any per-message check.
+    when:
+      detector_fired: trajectory
+      severity_at_least: high
+    action: block
+    severity: high
+    message: This conversation was flagged for review and cannot continue on this topic.
+
+  # -- authority -------------------------------------------------------------
+  - id: challenge-unverified-authority
+    description: >
+      An unproven claim of privileged identity, paired with a privileged
+      request. CHALLENGE requires out-of-band human confirmation; without a
+      confirmation callback wired up it degrades to a block, which is the
+      deliberate conservative default.
+    when:
+      detector_fired: authority_claim
+      severity_at_least: high
+    action: challenge
+    severity: high
+    message: This request asserts an authority we could not verify.
+
+  # -- content policy --------------------------------------------------------
+  - id: block-banned-content
+    when:
+      detector_fired: banned_topics
+      severity_at_least: high
+    action: block
+    severity: high
+    message: This content is not permitted by organisational policy.
+
+  # -- personal data ---------------------------------------------------------
+  # `stop: false` so evaluation continues: redaction should not prevent a later
+  # rule from escalating to a block.
+  - id: redact-personal-data
+    description: >
+      Strip personal data rather than failing the request. A user pasting their
+      own phone number into a support assistant should still get an answer.
+    when:
+      detector_fired: pii
+    action: redact
+    severity: medium
+    stop: false
+
+  # -- observability-only ----------------------------------------------------
+  # These change nothing. They exist so the events land in the dashboard with a
+  # named rule attached, which makes them searchable and alertable.
+  - id: flag-weak-injection-signals
+    description: Below the block threshold, but worth a dashboard row and cross-app correlation.
+    when:
+      detector_fired: prompt_injection
+      severity_at_least: low
+    action: flag
+    severity: low
+    stop: false
+
+  - id: flag-ungrounded-answers
+    description: >
+      Groundedness is a lexical screen, not a hallucination oracle. It flags,
+      never blocks — blocking on a lexical heuristic would be indefensible.
+    when:
+      detector_fired: groundedness
+    action: flag
+    severity: low
+    stop: false
+
+  - id: flag-external-content-in-memory
+    description: External content persisted to agent memory. Allowed, but tracked.
+    when:
+      all:
+        - stage: memory_write
+        - trust: [external, retrieved]
+    action: flag
+    severity: low
+    stop: false

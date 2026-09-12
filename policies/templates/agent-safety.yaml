@@ -1,0 +1,91 @@
+# Agent safety template.
+#
+# For applications where the model can act, not just answer. The threat model is
+# different: the dangerous case is not what the model says, it is what it does
+# on behalf of content that had no authority to ask.
+#
+# Not a compliance template — an operational one.
+
+id: keeper.template.agent-safety
+version: 1.0.0
+description: >
+  Strict runtime protection for tool-using agents: mediate every call against
+  the authority of whatever caused it, screen everything entering context, and
+  halt a run that crosses a boundary.
+
+defaults:
+  action: allow
+
+detectors:
+  token_flow:
+    action: block
+  prompt_injection:
+    threshold: 0.5          # lower than default: the blast radius is larger
+  authority_claim:
+    action: block
+
+tool_access:
+  # Deny by default for agent roles; list what each may actually do.
+  agent: ["crm.lookup", "db.query", "web.search", "file.read"]
+  agent_ops: ["*", "!shell.*", "!payment.*", "!iam.*"]
+
+rules:
+  - id: agent-block-unsafe-flow
+    description: >
+      The core control. Low-authority content driving a privileged sink — the
+      argument text may be entirely benign, which is exactly why a content
+      classifier cannot catch this.
+    when:
+      detector_fired: token_flow
+    action: block
+    severity: critical
+    message: This action was not authorised by a sufficiently trusted source.
+
+  - id: agent-block-laundered-memory
+    description: >
+      A high-risk action supported only by memory derived from untrusted
+      content. Consolidation may lose information; it must never gain authority.
+    when:
+      category: memory_provenance_laundering
+    action: block
+    severity: critical
+    message: This action is not supported by sufficiently trusted memory.
+
+  - id: agent-block-injected-tool-results
+    description: Instructions arriving in a tool result, caught before they enter context.
+    when:
+      all:
+        - stage: [tool_result, retrieval]
+        - detector_fired: [prompt_injection, authority_claim]
+    action: block
+    severity: critical
+
+  - id: agent-confirm-destructive-actions
+    description: >
+      Destructive or irreversible tools always require a human. Without a
+      confirmation callback this degrades to a block, which is correct.
+    when:
+      all:
+        - stage: tool_call
+        - tool: ["*.delete", "*.drop", "shell.*", "payment.*", "iam.*", "email.send"]
+    action: challenge
+    severity: high
+    message: This action requires explicit confirmation.
+
+  - id: agent-block-credentials-in-arguments
+    when:
+      all:
+        - stage: tool_call
+        - detector_fired: secrets
+    action: block
+    severity: critical
+
+  - id: agent-flag-external-in-memory
+    description: External content persisted to memory. Allowed — but tracked, and it carries its provenance forever.
+    when:
+      all:
+        - stage: memory_write
+        - trust: [external, retrieved]
+    action: flag
+    severity: low
+    stop: false

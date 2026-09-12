@@ -1,0 +1,69 @@
+# PCI DSS-oriented starting template.
+#
+# THIS IS NOT A COMPLIANCE GUARANTEE. The genuinely useful thing a firewall can
+# do for PCI is keep cardholder data out of the AI path entirely, so that the
+# AI systems stay out of scope. That is what this template is for.
+
+id: keeper.template.pci
+version: 1.0.0
+description: >
+  Starting template for keeping cardholder data out of AI traffic, so that
+  instrumented applications stay outside PCI scope.
+
+defaults:
+  action: allow
+
+detectors:
+  secrets:
+    action: block
+  pii:
+    action: block
+    options:
+      block_entities: [credit_card, iban]
+
+rules:
+  - id: pci-block-cardholder-data
+    description: >
+      Req. 3. A PAN reaching a model provider drags that provider, and the
+      application, into scope. Block rather than redact: a redaction miss is a
+      scope event.
+    when:
+      label: [credit_card, iban]
+    action: block
+    severity: critical
+    message: This request appears to contain payment card data, which cannot be processed by this assistant.
+
+  - id: pci-block-credentials
+    description: Req. 8. Credentials must not be transmitted to third parties.
+    when:
+      detector_fired: [secrets, secret_leakage]
+    action: block
+    severity: critical
+
+  - id: pci-block-card-data-in-output
+    when:
+      all:
+        - stage: output
+        - label: [credit_card, iban]
+    action: block
+    severity: critical
+    message: The response was withheld because it appeared to contain payment card data.
+
+  - id: pci-restrict-payment-tools
+    description: Req. 7. Payment tools require verified authority, never inferred authority.
+    when:
+      all:
+        - stage: tool_call
+        - tool: ["payment.*", "*.charge", "*.refund", "transfer*"]
+        - not: {trust: [user_confirmed, system]}
+    action: block
+    severity: critical
+    message: Payment actions require explicit user confirmation.
+
+  - id: pci-flag-all-payment-activity
+    description: Req. 10. Every payment-tool interaction is recorded, allowed or not.
+    when:
+      tool: ["payment.*", "*.charge", "*.refund"]
+    action: flag
+    severity: medium
+    stop: false

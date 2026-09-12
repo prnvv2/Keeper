@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "keeper-firewall"
+version = "0.1.0"
+description = "Open-source AI firewall SDK: input/output filtering, runtime protection, and first-class observability for LLM applications."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "The Keeper contributors" }]
+keywords = ["llm", "security", "firewall", "prompt-injection", "observability", "ai-security"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Typing :: Typed",
+]
+
+# Zero required dependencies, on purpose. This package is installed into other
+# people's applications, so every transitive dependency we add becomes their
+# supply-chain problem as well as ours. Everything below is optional.
+dependencies = []
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6.0"]
+metrics = ["prometheus-client>=0.19"]
+otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20", "opentelemetry-exporter-otlp-proto-http>=1.20"]
+# Everything an operator is likely to want in production.
+all = ["PyYAML>=6.0", "prometheus-client>=0.19", "opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "mypy>=1.10",
+  "ruff>=0.5",
+  "PyYAML>=6.0",
+  "prometheus-client>=0.19",
+]
+
+[project.urls]
+Homepage = "https://github.com/keeper-firewall/keeper"
+Documentation = "https://github.com/keeper-firewall/keeper/tree/main/docs"
+Source = "https://github.com/keeper-firewall/keeper"
+Issues = "https://github.com/keeper-firewall/keeper/issues"
+
+[project.scripts]
+keeper = "keeper_firewall.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["keeper_firewall"]
+
+[tool.hatch.build.targets.sdist]
+include = ["keeper_firewall", "tests", "README.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["error::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "S", "C4", "SIM", "RUF"]
+ignore = [
+  "E501",    # line length is handled by the formatter
+  "S101",    # asserts are fine in tests
+  "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "N806"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
