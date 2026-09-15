@@ -2,7 +2,7 @@
 # Inspects tool outputs for indirect prompt injection.
 # Attackers can poison web pages, documents, or API responses
 # with hidden instructions — this catches those before they
-# reach the agent's next reasoning step.
+# reach the agent's next reasoning step
 
 import re
 from keeper.core.pipeline import RequestContext
