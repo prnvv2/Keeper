@@ -6,8 +6,8 @@
   <a href="https://github.com/prnvv2/Keeper/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/prnvv2/Keeper/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/prnvv2/Keeper/actions/workflows/security.yml"><img alt="Security" src="https://github.com/prnvv2/Keeper/actions/workflows/security.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-blue"></a>
-  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white">
-  <img alt="Node 18+" src="https://img.shields.io/badge/node-18%2B-339933?logo=node.js&logoColor=white">
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB">
+  <img alt="Node 18+" src="https://img.shields.io/badge/node-18%2B-339933">
   <a href="docs/owasp-coverage.md"><img alt="OWASP LLM · Agentic · MCP" src="https://img.shields.io/badge/OWASP-LLM%20%C2%B7%20Agentic%20%C2%B7%20MCP-8A2BE2"></a>
 </p>
 
