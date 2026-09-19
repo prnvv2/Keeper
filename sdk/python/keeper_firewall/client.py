@@ -33,11 +33,12 @@ from __future__ import annotations
 import contextlib
 import functools
 import threading
-from typing import Any, Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from typing import Any
 
 from .accesscontrol.auth import AuthProvider, build_provider
 from .accesscontrol.ratelimit import Quota, RateLimiter
-from .accesscontrol.rbac import Authorizer, from_policy
+from .accesscontrol.rbac import from_policy
 from .config import KeeperConfig
 from .detectors import Detector
 from .errors import AuthorizationError, BlockedError, RateLimitError
@@ -59,7 +60,6 @@ from .types import (
     Decision,
     Document,
     GuardedResponse,
-    GuardedResponse as _GuardedResponse,  # re-export convenience
     LLMResponse,
     Message,
     Principal,
@@ -217,7 +217,8 @@ class Keeper:
     def _register_instance(self) -> None:
         """Announce this instance to the fleet inventory. Best effort."""
         assert self.client is not None
-        try:
+        # Fleet registration is best effort; never fail startup on it.
+        with contextlib.suppress(Exception):
             self.client.register_instance(
                 {
                     "instance_id": self.config.instance_id,
@@ -231,8 +232,6 @@ class Keeper:
                     "monitor_only": self.config.monitor_only,
                 }
             )
-        except Exception:  # noqa: BLE001 - inventory is not on the critical path
-            pass
 
     def _lease(self, scope: str, consumed: int) -> Mapping[str, Any]:
         assert self.client is not None
@@ -506,8 +505,9 @@ class Keeper:
                 return response
 
             if input_decision.action is Action.REDACT and input_decision.payload is not None:
-                turns = list(turns[:-1]) + [
-                    Message(role=turns[-1].role, content=input_decision.payload, trust=turns[-1].trust)
+                turns = [
+                    *turns[:-1],
+                    Message(role=turns[-1].role, content=input_decision.payload, trust=turns[-1].trust),
                 ]
 
             model_start = now_ms()
@@ -693,7 +693,7 @@ class Keeper:
         self.pipeline.close()
         self.sink.close()
 
-    def __enter__(self) -> "Keeper":
+    def __enter__(self) -> Keeper:
         return self
 
     def __exit__(self, *exc: object) -> None:

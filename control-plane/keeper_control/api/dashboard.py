@@ -290,7 +290,7 @@ async def publish_policy(
         from keeper_firewall.policy.models import Policy
 
         Policy.from_dict(payload.policy, source="control-plane")
-    except Exception as exc:  # noqa: BLE001 - surfaced to the author
+    except Exception as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"invalid policy: {exc}") from exc
 
     try:
@@ -316,7 +316,7 @@ async def dry_run_policy(
 
     try:
         policy = Policy.from_dict(payload.policy, source="dry-run")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"invalid policy: {exc}") from exc
 
     events, _total = state.repo.search_events(

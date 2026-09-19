@@ -10,13 +10,13 @@ from .loader import (
 from .models import SAFE_DEFAULT_POLICY, Policy, Rule, compile_condition
 
 __all__ = [
+    "SAFE_DEFAULT_POLICY",
     "EmbeddedEngine",
     "OPAEngine",
     "Policy",
     "PolicyEngine",
     "PolicyProvider",
     "Rule",
-    "SAFE_DEFAULT_POLICY",
     "build_engine",
     "build_facts",
     "compile_condition",

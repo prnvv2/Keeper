@@ -20,7 +20,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from .accesscontrol.auth import generate_api_key
 from .client import Keeper
@@ -79,7 +80,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
     with _keeper(args) as keeper:
         blocked = 0
         total = 0
-        with open(args.path, "r", encoding="utf-8") as fh:
+        with open(args.path, encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()
                 if not line:
@@ -115,7 +116,7 @@ def cmd_policy_validate(args: argparse.Namespace) -> int:
 def cmd_policy_dry_run(args: argparse.Namespace) -> int:
     policy = Policy.from_dict(load_policy_document(args.path), source=args.path)
     events: list[dict[str, Any]] = []
-    with open(args.events, "r", encoding="utf-8") as fh:
+    with open(args.events, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if line:

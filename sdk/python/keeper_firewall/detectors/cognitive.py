@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from typing import Any
 
 from ..config import DetectorConfig
 from ..types import Action, Finding, Message, Severity, Span, Stage, TrustLevel
@@ -198,11 +199,11 @@ _PERSISTENCE = re.compile(
 #: want is "the conversation is converging on a restricted objective", not
 #: fine-grained classification, which is the LLM classifier's job.
 _TOPIC_TERMS: dict[str, frozenset[str]] = {
-    "weapons": frozenset("explosive explosives detonator bomb firearm ammunition grenade ordnance warhead propellant".split()),
-    "chem_bio": frozenset("synthesis synthesize precursor reagent toxin pathogen culture aerosolize nerve agent enrichment".split()),
-    "cyber_offense": frozenset("exploit payload ransomware keylogger rootkit backdoor privilege escalation exfiltrate c2 botnet".split()),
-    "fraud": frozenset("counterfeit laundering untraceable forged phishing skimmer carding mule".split()),
-    "self_harm": frozenset("overdose lethal dose asphyxiation suicide".split()),
+    "weapons": frozenset(["explosive", "explosives", "detonator", "bomb", "firearm", "ammunition", "grenade", "ordnance", "warhead", "propellant"]),
+    "chem_bio": frozenset(["synthesis", "synthesize", "precursor", "reagent", "toxin", "pathogen", "culture", "aerosolize", "nerve", "agent", "enrichment"]),
+    "cyber_offense": frozenset(["exploit", "payload", "ransomware", "keylogger", "rootkit", "backdoor", "privilege", "escalation", "exfiltrate", "c2", "botnet"]),
+    "fraud": frozenset(["counterfeit", "laundering", "untraceable", "forged", "phishing", "skimmer", "carding", "mule"]),
+    "self_harm": frozenset(["overdose", "lethal", "dose", "asphyxiation", "suicide"]),
 }
 
 
@@ -257,7 +258,7 @@ class TrajectoryDetector(Detector):
         persistence = sum(1 for m in user_turns if _PERSISTENCE.search(m.content))
         refusal_pressure = self._refusal_pressure(refusals, persistence, len(user_turns))
 
-        drift_topic, drift_score, per_turn = self._topic_drift(user_turns + [Message("user", data.payload)])
+        drift_topic, drift_score, per_turn = self._topic_drift([*user_turns, Message("user", data.payload)])
         decomposition = self._decomposition(user_turns, drift_topic)
 
         signals = {
@@ -272,7 +273,7 @@ class TrajectoryDetector(Detector):
         if len(strong) >= 2:
             score = min(1.0, score + 0.2)
 
-        evidence = {
+        evidence: dict[str, Any] = {
             "signals": {k: round(v, 3) for k, v in signals.items()},
             "refusals": refusals,
             "persistence_markers": persistence,

@@ -17,8 +17,9 @@ from __future__ import annotations
 import enum
 import time
 import uuid
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
 from .version import SCHEMA_VERSION, __version__
 
@@ -46,11 +47,11 @@ class Action(str, enum.Enum):
     def severity(self) -> int:
         return _ACTION_SEVERITY[self]
 
-    def escalates_over(self, other: "Action") -> bool:
+    def escalates_over(self, other: Action) -> bool:
         return self.severity() > other.severity()
 
 
-_ACTION_SEVERITY: dict["Action", int] = {}
+_ACTION_SEVERITY: dict[Action, int] = {}
 
 
 class Severity(str, enum.Enum):
@@ -66,7 +67,7 @@ class Severity(str, enum.Enum):
         return _SEVERITY_RANK[self]
 
 
-_SEVERITY_RANK: dict["Severity", int] = {}
+_SEVERITY_RANK: dict[Severity, int] = {}
 
 
 class Stage(str, enum.Enum):
@@ -104,7 +105,7 @@ class TrustLevel(str, enum.Enum):
         return _TRUST_AUTHORITY[self]
 
 
-_TRUST_AUTHORITY: dict["TrustLevel", int] = {}
+_TRUST_AUTHORITY: dict[TrustLevel, int] = {}
 
 
 class RiskTier(str, enum.Enum):
@@ -119,7 +120,7 @@ class RiskTier(str, enum.Enum):
         return _RISK_REQUIRED_AUTHORITY[self]
 
 
-_RISK_REQUIRED_AUTHORITY: dict["RiskTier", int] = {}
+_RISK_REQUIRED_AUTHORITY: dict[RiskTier, int] = {}
 
 
 def _init_tables() -> None:
@@ -177,7 +178,7 @@ class Principal:
     auth_method: str | None = None
 
     @classmethod
-    def anonymous(cls) -> "Principal":
+    def anonymous(cls) -> Principal:
         return cls(id="anonymous", roles=("anonymous",), authenticated=False)
 
     def has_role(self, role: str) -> bool:
@@ -333,7 +334,7 @@ class Decision:
         findings: Iterable[Finding],
         policy_traces: Iterable[PolicyTrace] = (),
         payload: str | None = None,
-    ) -> "Decision":
+    ) -> Decision:
         """Escalation combination: the most severe signal wins outright.
 
         This is the decision rule from the Cognitive Firewall paper, applied to

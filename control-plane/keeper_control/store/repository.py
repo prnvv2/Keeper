@@ -12,12 +12,13 @@ import hashlib
 import json
 import time
 import uuid
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
-from sqlalchemy import and_, delete, desc, func, insert, or_, select, update
-from sqlalchemy.engine import Engine
+from sqlalchemy import and_, delete, desc, func, insert, select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.engine import Engine
 
 from .db import alert_rules, alerts, audit_events, event_counters, instances, policies
 

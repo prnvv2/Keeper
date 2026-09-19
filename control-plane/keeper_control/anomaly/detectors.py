@@ -38,8 +38,9 @@ from __future__ import annotations
 import math
 import statistics
 from collections import Counter, defaultdict
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Protocol
 
 
 @dataclass(slots=True)
@@ -340,7 +341,7 @@ def analyse(
     for detector in detectors:
         try:
             findings.extend(detector.analyse(events, config))
-        except Exception:  # noqa: BLE001 - a broken detector is not an outage
+        except Exception:
             continue
     return sorted(findings, key=lambda f: (-_SEVERITY[f.severity], -f.score))
 

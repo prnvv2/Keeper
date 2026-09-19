@@ -22,11 +22,12 @@ So shipping is a bounded queue drained by a background thread:
 from __future__ import annotations
 
 import atexit
+import contextlib
 import random
 import threading
 import time
 from collections import deque
-from typing import Callable
+from collections.abc import Callable
 
 from ..config import TelemetryConfig
 from ..errors import TransportError
@@ -92,8 +93,7 @@ class TelemetryShipper:
         if not self.enabled:
             return
         with self._lock:
-            if len(self._queue) >= self.config.queue_capacity:
-                if not self._make_room(event):
+            if len(self._queue) >= self.config.queue_capacity and not self._make_room(event):
                     self._dropped += 1
                     self._count_drop("queue_full")
                     return
@@ -177,12 +177,12 @@ class TelemetryShipper:
                 last = f"HTTP {response.status}"
             except TransportError as exc:
                 last = str(exc)
-            except Exception as exc:  # noqa: BLE001 - shipper must never crash the app
+            except Exception as exc:
                 last = repr(exc)
 
             self._last_error = last
             if attempt < self.config.max_retries:
-                time.sleep(delay + random.random() * delay)
+                time.sleep(delay + random.random() * delay)  # noqa: S311 - retry jitter, not security
                 delay = min(delay * 2, 8.0)
 
         self._fail(f"giving up after {self.config.max_retries} retries: {self._last_error}", batch, "unreachable")
@@ -194,10 +194,9 @@ class TelemetryShipper:
         if self.metrics:
             self.metrics.inc("telemetry_dropped_total", len(batch), reason=reason)
         if self.on_error:
-            try:
+            # A broken error hook must not break shipping.
+            with contextlib.suppress(Exception):
                 self.on_error(TransportError(message))
-            except Exception:  # noqa: BLE001
-                pass
 
     # -- lifecycle ---------------------------------------------------------
 

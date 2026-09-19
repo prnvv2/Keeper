@@ -20,7 +20,7 @@ import asyncio
 import contextlib
 import logging
 import time
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -101,7 +101,7 @@ async def _loop(name: str, interval_s: float, fn) -> None:
             await asyncio.get_running_loop().run_in_executor(None, fn)
         except asyncio.CancelledError:
             raise
-        except Exception:  # noqa: BLE001 - a failed tick must not kill the loop
+        except Exception:
             log.exception("background job %s failed", name)
 
 

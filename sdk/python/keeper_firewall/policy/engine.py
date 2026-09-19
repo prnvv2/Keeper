@@ -20,7 +20,8 @@ Two implementations share one interface:
 from __future__ import annotations
 
 import time
-from typing import Any, Mapping, Protocol, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any, Protocol
 
 from ..errors import PolicyError
 from ..types import (
@@ -109,7 +110,7 @@ class EmbeddedEngine:
                 matched = rule.matches(facts)
             except PolicyError:
                 raise
-            except Exception as exc:  # noqa: BLE001 - a broken rule is a policy bug
+            except Exception as exc:
                 raise PolicyError(f"rule {rule.id!r} failed to evaluate: {exc}") from exc
             elapsed = (time.perf_counter() - rule_start) * 1000
             if not matched:

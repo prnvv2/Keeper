@@ -27,7 +27,8 @@ from __future__ import annotations
 
 import hashlib
 import re
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 from ..config import DetectorConfig
 from ..types import Action, Finding, Severity, Span, Stage
@@ -99,7 +100,7 @@ class SecretLeakageDetector(Detector):
         if not spans:
             return self.clean("no known secrets in response")
 
-        spans = _dedupe(spans)
+        spans = list(_dedupe(spans))
         labels = sorted({s.label for s in spans})
         return self.hit(
             score=1.0,
@@ -184,10 +185,7 @@ class BannedTopicsDetector(Detector):
 _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 _WORD = re.compile(r"[a-z0-9]+")
 _STOPWORDS = frozenset(
-    "a an the and or but if then of to in on at by for with from as is are was were be been being "
-    "this that these those it its it's you your we our they their he she his her i me my do does did "
-    "not no can could would should will shall may might must have has had there here what which who "
-    "when where why how all any some each other more most than so such only own same too very".split()
+    ["a", "an", "the", "and", "or", "but", "if", "then", "of", "to", "in", "on", "at", "by", "for", "with", "from", "as", "is", "are", "was", "were", "be", "been", "being", "this", "that", "these", "those", "it", "its", "it's", "you", "your", "we", "our", "they", "their", "he", "she", "his", "her", "i", "me", "my", "do", "does", "did", "not", "no", "can", "could", "would", "should", "will", "shall", "may", "might", "must", "have", "has", "had", "there", "here", "what", "which", "who", "when", "where", "why", "how", "all", "any", "some", "each", "other", "more", "most", "than", "so", "such", "only", "own", "same", "too", "very"]
 )
 
 
@@ -238,7 +236,7 @@ class GroundednessDetector(Detector):
 
         unsupported = [(s, o) for s, o in scored if o < self.min_overlap]
         ratio = len(unsupported) / len(scored)
-        evidence = {
+        evidence: dict[str, Any] = {
             "sentences_checked": len(scored),
             "unsupported_sentences": len(unsupported),
             "unsupported_ratio": round(ratio, 3),

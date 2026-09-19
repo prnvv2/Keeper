@@ -27,11 +27,10 @@ silent.
 
 from __future__ import annotations
 
-import json
 import logging
-import time
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Protocol
 
 import httpx
 
@@ -286,7 +285,7 @@ class AlertEngine:
             try:
                 notifier.send(alert)
                 results.append({"channel": channel, "status": "delivered"})
-            except Exception as exc:  # noqa: BLE001 - a broken channel is not a lost alert
+            except Exception as exc:
                 log.error("alert delivery to %s failed: %s", channel, exc)
                 results.append({"channel": channel, "status": "failed", "error": str(exc)[:300]})
         return results
@@ -329,9 +328,10 @@ class AlertEngine:
                 return False
 
         min_severity = spec.get("min_severity")
-        if min_severity and SEVERITY_RANK.get(event.get("severity", "info"), 0) < SEVERITY_RANK.get(min_severity, 0):
-            return False
-        return True
+        return not (
+            min_severity
+            and SEVERITY_RANK.get(event.get("severity", "info"), 0) < SEVERITY_RANK.get(min_severity, 0)
+        )
 
 
 def default_rules() -> list[dict[str, Any]]:

@@ -31,8 +31,10 @@ Detection depth degrades under load; latency does not grow without bound.
 from __future__ import annotations
 
 import concurrent.futures
+import contextlib
 import time
-from typing import Any, Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 from .config import FAIL_CLOSED, FAIL_OPEN, KeeperConfig
 from .detectors import (
@@ -131,7 +133,7 @@ class Pipeline:
                     merged.options = {**det_config.options, **overrides[name]["options"]}
             try:
                 self._detectors[name] = build_detector(name, merged)
-            except Exception as exc:  # noqa: BLE001 - surfaced at startup, not per-request
+            except Exception as exc:
                 raise PolicyError(f"could not build detector {name!r}: {exc}") from exc
         for det in extra:
             self._detectors[det.name] = det
@@ -207,7 +209,8 @@ class Pipeline:
             # that we could not evaluate properly, so do not report a clean
             # allow. Block and say why.
             decision.action = Action.BLOCK
-            decision.findings = decision.findings + (
+            decision.findings = (
+                *decision.findings,
                 Finding(
                     detector="pipeline",
                     detected=True,
@@ -270,16 +273,13 @@ class Pipeline:
 
             if spent >= budget_ms:
                 findings.append(self._budget_finding(name, spent, budget_ms))
-                if self.config.fail_mode == FAIL_CLOSED:
-                    fail_mode = FAIL_CLOSED
-                else:
-                    fail_mode = fail_mode or FAIL_OPEN
+                fail_mode = FAIL_CLOSED if self.config.fail_mode == FAIL_CLOSED else (fail_mode or FAIL_OPEN)
                 continue
 
             start = time.perf_counter()
             try:
                 finding = self._invoke(detector, data, budget_ms - spent)
-            except Exception as exc:  # noqa: BLE001 - converted to a fail-mode finding
+            except Exception as exc:
                 elapsed = (time.perf_counter() - start) * 1000
                 spent += elapsed
                 mode = detector.config.fail_mode
@@ -377,7 +377,7 @@ class Pipeline:
         start = time.perf_counter()
         try:
             traces = engine.evaluate(facts)
-        except Exception as exc:  # noqa: BLE001 - policy failure is a fail-mode event
+        except Exception as exc:
             elapsed = (time.perf_counter() - start) * 1000
             self.metrics.observe("policy_latency_ms", elapsed, policy_id=engine.policy.id)
             mode = self.config.fail_mode
@@ -449,10 +449,9 @@ class Pipeline:
         if self.shipper is not None:
             self.shipper.emit(event)
         if self.on_event is not None:
-            try:
+            # A broken listener must not break the request.
+            with contextlib.suppress(Exception):
                 self.on_event(event)
-            except Exception:  # noqa: BLE001 - listeners must not break requests
-                pass
 
     @staticmethod
     def _stage_tags(

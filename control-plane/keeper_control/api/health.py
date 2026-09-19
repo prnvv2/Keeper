@@ -41,7 +41,7 @@ async def readiness(response: Response, state: AppState = Depends(get_state)) ->
     try:
         with state.repo.engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "unavailable", "detail": str(exc)[:200]}
     return {"status": "ready"}

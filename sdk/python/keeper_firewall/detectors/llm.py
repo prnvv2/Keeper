@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from ..config import DetectorConfig
 from ..errors import DetectorError
@@ -81,7 +82,7 @@ class LLMClassifierDetector(Detector):
         self.prompt_template: str = opts.get("prompt", JUDGE_PROMPT)
         self._call = call
 
-    def bind(self, call: Callable[[str], str]) -> "LLMClassifierDetector":
+    def bind(self, call: Callable[[str], str]) -> LLMClassifierDetector:
         """Attach the model callable. Returns self for chaining."""
         self._call = call
         return self
@@ -96,7 +97,7 @@ class LLMClassifierDetector(Detector):
         )
         try:
             raw = self._call(prompt)
-        except Exception as exc:  # noqa: BLE001 - surfaced via detector fail mode
+        except Exception as exc:
             raise DetectorError(self.name, exc) from exc
 
         verdict = self._parse(raw)

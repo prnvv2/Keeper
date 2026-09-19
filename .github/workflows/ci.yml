@@ -83,8 +83,10 @@ jobs:
         run: pip install "./sdk/python[dev]"
       - name: Lint
         run: ruff check sdk/python
+      # Point at the SDK's config: from the repo root mypy would not find
+      # [tool.mypy] (ignore_missing_imports for the optional extras).
       - name: Type check
-        run: mypy sdk/python/keeper_firewall
+        run: mypy --config-file sdk/python/pyproject.toml sdk/python/keeper_firewall
       - name: Test
         run: pytest sdk/python/tests -q --cov=keeper_firewall --cov-report=term-missing
 

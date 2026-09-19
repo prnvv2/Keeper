@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, Callable, Iterator, Protocol, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from typing import Any, Protocol
 
 from ..errors import ConfigurationError, KeeperError
 from ..types import LLMResponse, Message, ToolCall

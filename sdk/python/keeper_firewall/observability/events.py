@@ -17,7 +17,8 @@ import json
 import os
 import sys
 import threading
-from typing import Any, Callable, Iterable, Protocol, Sequence
+from collections.abc import Callable, Iterable, Sequence
+from typing import Any, Protocol
 
 from ..types import (
     Action,
@@ -132,7 +133,7 @@ class JSONLinesSink:
         directory = os.path.dirname(os.path.abspath(path))
         if directory:
             os.makedirs(directory, exist_ok=True)
-        self._fh = open(path, "a", encoding="utf-8")
+        self._fh = open(path, "a", encoding="utf-8")  # noqa: SIM115 - long-lived sink handle, closed in close()
 
     def emit(self, event: AuditEvent) -> None:
         line = json.dumps(event.to_dict(), separators=(",", ":"), default=str)
@@ -149,7 +150,7 @@ class JSONLinesSink:
             if os.path.exists(src):
                 os.replace(src, dst)
         os.replace(self.path, f"{self.path}.1")
-        self._fh = open(self.path, "a", encoding="utf-8")
+        self._fh = open(self.path, "a", encoding="utf-8")  # noqa: SIM115 - reopened after rotation
 
     def flush(self) -> None:
         with self._lock:
@@ -227,7 +228,7 @@ class CallbackSink:
     def emit(self, event: AuditEvent) -> None:
         try:
             self.callback(event)
-        except Exception as exc:  # noqa: BLE001 - listener must not break the request
+        except Exception as exc:
             if self.on_error:
                 self.on_error(exc)
 
@@ -251,21 +252,21 @@ class FanoutSink:
         for sink in self.sinks:
             try:
                 sink.emit(event)
-            except Exception:  # noqa: BLE001 - a broken sink must not break the request
+            except Exception:  # noqa: S112 - one failing sink must not starve the others
                 continue
 
     def flush(self) -> None:
         for sink in self.sinks:
             try:
                 sink.flush()
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: S112 - one failing sink must not starve the others
                 continue
 
     def close(self) -> None:
         for sink in self.sinks:
             try:
                 sink.close()
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: S112 - one failing sink must not starve the others
                 continue
 
 

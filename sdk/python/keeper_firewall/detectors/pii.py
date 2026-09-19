@@ -3,7 +3,7 @@
 Regex plus validators — not an NER model. That is a deliberate v1 choice:
 
 * It is deterministic, so a redaction decision is reproducible and explainable
-  in an audit review ("rule ``credit_card`` matched offsets 41–57, Luhn-valid").
+  in an audit review ("rule ``credit_card`` matched offsets 41-57, Luhn-valid").
 * It costs microseconds, which keeps us inside the latency budget in
   ``docs/architecture.md`` without loading a model into the host process.
 * It has no model weights, so the SDK stays a small pure-Python wheel — see
@@ -22,7 +22,7 @@ it reaches the provider.
 from __future__ import annotations
 
 import re
-from typing import Callable, Iterable
+from collections.abc import Callable, Iterable
 
 from ..config import DetectorConfig
 from ..types import Action, Finding, Severity, Span, Stage

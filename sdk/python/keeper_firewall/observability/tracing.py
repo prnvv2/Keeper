@@ -18,7 +18,8 @@ from __future__ import annotations
 import contextlib
 import os
 import random
-from typing import Any, Iterator, Mapping
+from collections.abc import Iterator, Mapping
+from typing import Any
 
 try:  # pragma: no cover - depends on the host environment
     from opentelemetry import trace as _otel_trace
@@ -69,7 +70,7 @@ class Tracer:
         self._tracer = _otel_trace.get_tracer(service_name) if (enabled and self.otel_available) else None
 
     @contextlib.contextmanager
-    def span(self, name: str, **attributes: Any) -> Iterator["SpanHandle"]:
+    def span(self, name: str, **attributes: Any) -> Iterator[SpanHandle]:
         """Start a span. Always yields a handle, with or without OTel."""
         if self._tracer is None:
             handle = SpanHandle(new_trace_id(), new_span_id())
@@ -99,7 +100,7 @@ class Tracer:
 class SpanHandle:
     """A span you can attach attributes and events to, OTel or not."""
 
-    __slots__ = ("trace_id", "span_id", "_otel", "attributes", "events")
+    __slots__ = ("_otel", "attributes", "events", "span_id", "trace_id")
 
     def __init__(self, trace_id: str, span_id: str, otel_span: Any = None) -> None:
         self.trace_id = trace_id
@@ -127,4 +128,4 @@ class SpanHandle:
 
 def sampled(rate: float) -> bool:
     """Head sampling decision. Security events bypass this — they are always kept."""
-    return rate >= 1.0 or random.random() < rate
+    return rate >= 1.0 or random.random() < rate  # noqa: S311 - trace sampling, not security

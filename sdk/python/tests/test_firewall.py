@@ -10,7 +10,7 @@ from keeper_firewall import Keeper
 from keeper_firewall.accesscontrol.auth import APIKeyProvider, APIKeyRecord, generate_api_key, hash_api_key
 from keeper_firewall.accesscontrol.ratelimit import Quota, RateLimiter
 from keeper_firewall.accesscontrol.rbac import Authorizer, Permission, Role
-from keeper_firewall.config import FAIL_CLOSED, KeeperConfig
+from keeper_firewall.config import FAIL_CLOSED
 from keeper_firewall.errors import AuthenticationError, AuthorizationError, BlockedError, RateLimitError
 from keeper_firewall.observability.redaction import Redactor
 from keeper_firewall.policy.loader import dry_run_report, safe_default_policy
@@ -174,7 +174,7 @@ def test_dry_run_records_what_would_happen_without_acting():
         k.set_policy(policy)
         decision = k.check_input("email bob@example.com")
         assert not decision.blocked
-        note = [t.note for t in decision.policy_traces if t.matched][0]
+        note = next(t.note for t in decision.policy_traces if t.matched)
         assert "dry-run" in note
 
 
@@ -244,7 +244,8 @@ def test_api_key_file_is_reloaded_on_change(tmp_path):
     path.write_text(json.dumps({"salt": "s", "keys": [
         {"key_id": "a", "hash": hash_api_key(key, "s"), "principal_id": "u", "disabled": True}
     ]}))
-    import os, time
+    import os
+    import time
     os.utime(path, (time.time() + 1, time.time() + 1))
     with pytest.raises(AuthenticationError):
         provider.authenticate(key)
@@ -445,7 +446,7 @@ def test_stream_breaks_mid_generation_on_a_leak(keeper):
 
 def test_stream_passes_benign_content_through(keeper):
     def chunks():
-        for word in "the refund window is thirty days from delivery".split():
+        for word in ["the", "refund", "window", "is", "thirty", "days", "from", "delivery"]:
             yield word + " "
 
     result = keeper.stream_guard.collect(chunks(), keeper.context(user="u1"))

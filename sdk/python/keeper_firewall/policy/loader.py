@@ -38,8 +38,8 @@ from __future__ import annotations
 import json
 import os
 import threading
-import time
-from typing import Any, Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 from ..config import PolicyConfig
 from ..errors import PolicyError, TransportError
@@ -52,7 +52,7 @@ def load_policy_document(path: str) -> dict[str, Any]:
     """Read a policy document from a YAML or JSON file."""
     if not os.path.exists(path):
         raise PolicyError(f"policy file not found: {path}")
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         text = fh.read()
     if path.endswith((".yaml", ".yml")):
         try:
@@ -155,10 +155,10 @@ class PolicyProvider:
         # control_plane: try once synchronously so a correctly configured app
         # starts with the right policy rather than a fallback it then swaps.
         try:
-            policy = self._fetch()
-            if policy is not None:
-                return policy
-        except Exception as exc:  # noqa: BLE001 - startup must not hard-fail
+            fetched = self._fetch()
+            if fetched is not None:
+                return fetched
+        except Exception as exc:
             self._last_error = str(exc)
             if self.on_error:
                 self.on_error(exc)
@@ -198,7 +198,7 @@ class PolicyProvider:
         """Fetch once. Returns True if the active policy changed."""
         try:
             policy = self._fetch()
-        except Exception as exc:  # noqa: BLE001 - refresh failure is handled, not fatal
+        except Exception as exc:
             self._last_error = str(exc)
             if self.on_error:
                 self.on_error(exc)
@@ -273,7 +273,7 @@ class PolicyProvider:
             thread.join(timeout=1.0)
 
 
-def dry_run_report(policy: Policy, events: list[Mapping[str, Any]]) -> dict[str, Any]:
+def dry_run_report(policy: Policy, events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """Replay historical audit events against a candidate policy.
 
     This is what makes ``policy.dry_run`` more than a config flag: the control

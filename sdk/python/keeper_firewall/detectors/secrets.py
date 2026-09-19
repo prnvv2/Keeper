@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from ..config import DetectorConfig
 from ..types import Action, Finding, Severity, Span, Stage
@@ -58,7 +58,7 @@ _PLACEHOLDERS = {
 
 
 def shannon_entropy(value: str) -> float:
-    """Bits of entropy per character. Random base64 lands around 5.5–6.0."""
+    """Bits of entropy per character. Random base64 lands around 5.5-6.0."""
     if not value:
         return 0.0
     counts: dict[str, int] = {}

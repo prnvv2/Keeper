@@ -20,10 +20,11 @@ import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 
-from ..errors import TransportError
+from ..errors import ConfigurationError, TransportError
 from ..version import __version__
 
 USER_AGENT = f"keeper-firewall-python/{__version__}"
@@ -64,6 +65,11 @@ class ControlPlaneClient:
         ca_bundle: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> None:
+        scheme = urllib.parse.urlsplit(base_url).scheme.lower()
+        if scheme not in ("http", "https"):
+            # urlopen also honours file: and ftp:; a mistyped endpoint must not
+            # turn telemetry shipping into a local file read.
+            raise ConfigurationError(f"endpoint must be an http(s) URL, got scheme {scheme!r}")
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout_ms / 1000
@@ -96,15 +102,16 @@ class ControlPlaneClient:
         body: bytes | None = None,
         headers: Mapping[str, str] | None = None,
     ) -> Response:
-        url = path if path.startswith("http") else f"{self.base_url}{path}"
+        url = path if urllib.parse.urlsplit(path).scheme in ("http", "https") else f"{self.base_url}{path}"
         hdrs = {"User-Agent": USER_AGENT, "Accept": "application/json", **self.extra_headers}
         if self.api_key:
             hdrs["Authorization"] = f"Bearer {self.api_key}"
         hdrs.update(headers or {})
 
-        request = urllib.request.Request(url, data=body, headers=hdrs, method=method)
+        request = urllib.request.Request(url, data=body, headers=hdrs, method=method)  # noqa: S310 - http(s) only
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout, context=self._ssl_context) as resp:
+            # Scheme restricted to http(s) in __init__ and above.
+            with urllib.request.urlopen(request, timeout=self.timeout, context=self._ssl_context) as resp:  # noqa: S310
                 return Response(resp.status, resp.read(), dict(resp.headers))
         except urllib.error.HTTPError as exc:
             # 304 and 4xx are answers, not failures: the caller decides.

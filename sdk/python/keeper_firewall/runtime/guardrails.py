@@ -32,8 +32,9 @@ from __future__ import annotations
 
 import fnmatch
 import threading
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any
 
 from ..errors import AuthorizationError, BlockedError
 from ..types import (
@@ -210,7 +211,7 @@ class ToolGuard:
             return decision
         try:
             approved = self.confirm(call, decision)
-        except Exception:  # noqa: BLE001 - a failed confirmation is not an approval
+        except Exception:
             approved = False
         decision.action = Action.ALLOW if approved else Action.BLOCK
         self.pipeline.emit(

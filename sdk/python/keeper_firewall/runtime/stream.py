@@ -33,8 +33,9 @@ text may reach the user before the break.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterator, Sequence
+from typing import Any
 
 from ..types import Action, Decision, RequestContext, Stage, TrustLevel
 

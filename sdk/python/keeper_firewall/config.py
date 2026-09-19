@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field, fields, is_dataclass
-from typing import Any, Mapping
+from typing import Any
 
 from .errors import ConfigurationError
 from .types import new_id
@@ -195,7 +196,7 @@ class KeeperConfig:
         config_path: str | None = None,
         env: Mapping[str, str] | None = None,
         **overrides: Any,
-    ) -> "KeeperConfig":
+    ) -> KeeperConfig:
         env = os.environ if env is None else env
         cfg = cls(detectors=default_detectors())
 
@@ -323,7 +324,7 @@ def _env_overrides(env: Mapping[str, str]) -> dict[str, Any]:
 def _read_config_file(path: str) -> dict[str, Any]:
     if not os.path.exists(path):
         raise ConfigurationError(f"config file not found: {path}")
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         text = fh.read()
     if path.endswith((".yaml", ".yml")):
         try:

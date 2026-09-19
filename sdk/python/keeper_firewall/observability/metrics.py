@@ -25,10 +25,12 @@ from __future__ import annotations
 import math
 import threading
 import time
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import Any
 
 from ..config import MetricsConfig
 
+_prom: Any
 try:  # pragma: no cover - depends on the host environment
     import prometheus_client as _prom
 except ImportError:  # pragma: no cover
@@ -45,7 +47,7 @@ _PROM_CACHE: dict[str, Any] = {}
 
 
 class _Series:
-    __slots__ = ("name", "help", "type", "labelnames", "values", "buckets", "lock")
+    __slots__ = ("buckets", "help", "labelnames", "lock", "name", "type", "values")
 
     def __init__(self, name: str, help_: str, type_: str, labelnames: Sequence[str], buckets: Sequence[float] = ()):
         self.name = name
@@ -86,10 +88,10 @@ class _Series:
         with self.lock:
             snapshot = dict(self.values)
         for key, value in sorted(snapshot.items()):
-            labels = dict(zip(self.labelnames, key))
+            labels = dict(zip(self.labelnames, key, strict=True))
             if self.type == "histogram":
                 cumulative = 0
-                for bound, count in zip(self.buckets, value["buckets"]):
+                for bound, count in zip(self.buckets, value["buckets"], strict=True):
                     cumulative += count
                     lines.append(f"{self.name}_bucket{_fmt({**labels, 'le': _fmt_float(bound)})} {cumulative}")
                 lines.append(f"{self.name}_bucket{_fmt({**labels, 'le': '+Inf'})} {value['count']}")
@@ -197,7 +199,7 @@ class Metrics:
             self._register(
                 name,
                 lambda: _prom.Histogram(
-                    self._name(name), help_, labels, buckets=tuple(buckets) + (float("inf"),)
+                    self._name(name), help_, labels, buckets=(*buckets, float("inf"))
                 ),
             )
         else:
@@ -276,7 +278,7 @@ class Metrics:
             metrics = self
 
             class Handler(BaseHTTPRequestHandler):
-                def do_GET(self) -> None:  # noqa: N802 - stdlib API
+                def do_GET(self) -> None:
                     if self.path.rstrip("/") not in ("/metrics", ""):
                         self.send_response(404)
                         self.end_headers()
@@ -291,7 +293,8 @@ class Metrics:
                 def log_message(self, *args: Any) -> None:  # silence stdlib logging
                     return
 
-            server = HTTPServer(("0.0.0.0", port), Handler)
+            # All interfaces on purpose: Prometheus scrapes from outside the container.
+            server = HTTPServer(("0.0.0.0", port), Handler)  # noqa: S104
             thread = threading.Thread(target=server.serve_forever, name="keeper-metrics", daemon=True)
             thread.start()
         self._server_started = True
@@ -300,7 +303,7 @@ class Metrics:
 class Timer:
     """Context manager recording elapsed milliseconds into a histogram."""
 
-    __slots__ = ("metrics", "name", "labels", "start", "elapsed_ms")
+    __slots__ = ("elapsed_ms", "labels", "metrics", "name", "start")
 
     def __init__(self, metrics: Metrics, name: str, **labels: str) -> None:
         self.metrics = metrics
@@ -309,7 +312,7 @@ class Timer:
         self.start = 0.0
         self.elapsed_ms = 0.0
 
-    def __enter__(self) -> "Timer":
+    def __enter__(self) -> Timer:
         self.start = time.perf_counter()
         return self
 

@@ -22,8 +22,9 @@ replace this module behind the same :meth:`Authorizer.authorize` signature.
 from __future__ import annotations
 
 import fnmatch
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
 from ..errors import AuthorizationError
 from ..types import Principal
@@ -42,7 +43,7 @@ class Permission:
         return self.resource_type in (resource_type, "*") and fnmatch.fnmatchcase(resource, self.pattern)
 
     @classmethod
-    def parse(cls, spec: str | Mapping[str, Any]) -> "Permission":
+    def parse(cls, spec: str | Mapping[str, Any]) -> Permission:
         """Parse ``"model:gpt-4*"``, ``"!tool:shell.*"`` or a mapping."""
         if isinstance(spec, Mapping):
             return cls(
@@ -72,7 +73,7 @@ class Role:
     description: str = ""
 
     @classmethod
-    def from_dict(cls, name: str, data: Mapping[str, Any]) -> "Role":
+    def from_dict(cls, name: str, data: Mapping[str, Any]) -> Role:
         return cls(
             name=name,
             permissions=tuple(Permission.parse(p) for p in data.get("permissions", ())),
@@ -95,7 +96,7 @@ class Authorizer:
     superuser_roles: frozenset[str] = frozenset({"admin"})
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "Authorizer":
+    def from_dict(cls, data: Mapping[str, Any]) -> Authorizer:
         roles = {name: Role.from_dict(name, spec) for name, spec in (data.get("roles") or {}).items()}
         return cls(
             roles=roles,

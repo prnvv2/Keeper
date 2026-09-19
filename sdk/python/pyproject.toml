@@ -67,7 +67,12 @@ include = ["keeper_firewall", "tests", "README.md"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
-filterwarnings = ["error::DeprecationWarning"]
+filterwarnings = [
+  "error::DeprecationWarning",
+  # Third-party, raised when fastapi/starlette's TestClient is imported; not ours.
+  "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+  "ignore:Using `httpx` with `starlette.testclient` is deprecated:DeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 110

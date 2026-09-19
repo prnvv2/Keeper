@@ -25,8 +25,9 @@ wants a second opinion, and the pipeline decides whether to pay for one.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 from ..config import DetectorConfig
 from ..types import Action, Finding, RiskTier, Severity, Stage, TrustLevel
@@ -123,9 +124,9 @@ class TokenFlowDetector(Detector):
         lowered = sink.lower()
         best: RiskTier | None = None
         for prefix, tier in self.sink_risk.items():
-            if lowered.startswith(prefix) or f".{prefix}" in lowered or prefix in lowered:
-                if best is None or _RISK_ORDER[tier] > _RISK_ORDER[best]:
-                    best = tier
+            matches = lowered.startswith(prefix) or f".{prefix}" in lowered or prefix in lowered
+            if matches and (best is None or _RISK_ORDER[tier] > _RISK_ORDER[best]):
+                best = tier
         return best or self.default_risk
 
     #: Boundaries where content flows *into* the model's context rather than

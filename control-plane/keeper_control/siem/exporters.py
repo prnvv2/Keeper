@@ -34,8 +34,9 @@ import json
 import logging
 import socket
 import time
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Protocol
 
 import httpx
 
@@ -81,6 +82,9 @@ def _clean(event: Mapping[str, Any]) -> dict[str, Any]:
         "prompt": event.get("prompt"),
         "response": event.get("response"),
         "tags": event.get("tags") or {},
+        "threats": event.get("threats") or [],
+        "risk_score": event.get("risk_score") or 0,
+        "risk_band": event.get("risk_band") or "none",
     }
 
 
@@ -375,7 +379,7 @@ class SIEMForwarder:
         for exporter in self.exporters:
             try:
                 exported += exporter.export(events)
-            except Exception as exc:  # noqa: BLE001 - one bad target must not stall the rest
+            except Exception as exc:
                 message = f"{exporter.name}: {exc}"
                 errors.append(message)
                 self.last_error = message
@@ -407,5 +411,5 @@ class SIEMForwarder:
         for exporter in self.exporters:
             try:
                 exporter.close()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 continue

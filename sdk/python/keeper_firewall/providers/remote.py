@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Iterator, Sequence
+from collections.abc import Iterator, Sequence
+from typing import Any
 
 from ..errors import KeeperError
 from ..transport.client import ControlPlaneClient
@@ -193,8 +194,9 @@ def _sse(client: ControlPlaneClient, path: str, body: bytes) -> Iterator[str]:
     headers.update(client.extra_headers)
     if client.api_key:
         headers["Authorization"] = f"Bearer {client.api_key}"
-    request = urllib.request.Request(f"{client.base_url}{path}", data=body, headers=headers, method="POST")
-    with urllib.request.urlopen(request, timeout=client.timeout, context=client._ssl_context) as response:
+    # client.base_url is validated as http(s) by ControlPlaneClient.
+    request = urllib.request.Request(f"{client.base_url}{path}", data=body, headers=headers, method="POST")  # noqa: S310
+    with urllib.request.urlopen(request, timeout=client.timeout, context=client._ssl_context) as response:  # noqa: S310
         if response.status >= 400:
             raise KeeperError(f"model provider returned HTTP {response.status}")
         for raw_line in response:

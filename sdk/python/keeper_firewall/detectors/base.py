@@ -14,8 +14,9 @@ paths use the same contract, so there is no second-class plugin tier.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any
 
 from ..config import DetectorConfig
 from ..errors import ConfigurationError
@@ -182,7 +183,10 @@ def detector(name: str) -> Callable[[type[Detector]], type[Detector]]:
 
     def wrap(cls: type[Detector]) -> type[Detector]:
         cls.name = name
-        register(name, lambda cfg, _cls=cls: _cls(cfg))
+        def factory(cfg: DetectorConfig) -> Detector:
+            return cls(cfg)
+
+        register(name, factory)
         return cls
 
     return wrap

@@ -36,7 +36,7 @@ class BackgroundServer:
         self.thread = threading.Thread(target=self.server.run, daemon=True)
         self.port = port
 
-    def __enter__(self) -> "BackgroundServer":
+    def __enter__(self) -> BackgroundServer:
         self.thread.start()
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:

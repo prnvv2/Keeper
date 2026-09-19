@@ -28,8 +28,9 @@ from __future__ import annotations
 
 import fnmatch
 import re
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any
 
 from ..errors import PolicyError
 from ..risk import RiskBand, RiskConfig
@@ -149,6 +150,22 @@ def _regex_predicate(spec: Any) -> Predicate:
     return check
 
 
+def _constant(value: bool) -> Predicate:
+    return lambda ctx: value
+
+
+def _all_of(parts: list[Predicate]) -> Predicate:
+    return lambda ctx: all(p(ctx) for p in parts)
+
+
+def _any_of(parts: list[Predicate]) -> Predicate:
+    return lambda ctx: any(p(ctx) for p in parts)
+
+
+def _negate(part: Predicate) -> Predicate:
+    return lambda ctx: not part(ctx)
+
+
 def compile_condition(spec: Any) -> Predicate:
     """Compile a ``when`` clause into a callable predicate.
 
@@ -162,32 +179,28 @@ def compile_condition(spec: Any) -> Predicate:
     A mapping with several leaf keys is an implicit ``all``.
     """
     if spec is None:
-        return lambda ctx: True
+        return _constant(True)
     if isinstance(spec, bool):
-        return lambda ctx, v=spec: v
+        return _constant(spec)
     if isinstance(spec, Sequence) and not isinstance(spec, (str, bytes)):
-        parts = [compile_condition(s) for s in spec]
-        return lambda ctx: all(p(ctx) for p in parts)
+        return _all_of([compile_condition(s) for s in spec])
     if not isinstance(spec, Mapping):
         raise PolicyError(f"condition must be a mapping or list, got {type(spec).__name__}")
 
     predicates: list[Predicate] = []
     for key, value in spec.items():
         if key == "all":
-            parts = [compile_condition(s) for s in _as_list(value)]
-            predicates.append(lambda ctx, ps=parts: all(p(ctx) for p in ps))
+            predicates.append(_all_of([compile_condition(s) for s in _as_list(value)]))
         elif key == "any":
-            parts = [compile_condition(s) for s in _as_list(value)]
-            predicates.append(lambda ctx, ps=parts: any(p(ctx) for p in ps))
+            predicates.append(_any_of([compile_condition(s) for s in _as_list(value)]))
         elif key in ("not", "none"):
-            part = compile_condition(value)
-            predicates.append(lambda ctx, p=part: not p(ctx))
+            predicates.append(_negate(compile_condition(value)))
         elif key in LEAF_BUILDERS:
             predicates.append(LEAF_BUILDERS[key](value))
         else:
             raise PolicyError(
                 f"unknown condition {key!r}; supported: "
-                f"{', '.join(sorted(list(LEAF_BUILDERS) + ['all', 'any', 'not']))}"
+                f"{', '.join(sorted([*LEAF_BUILDERS, 'all', 'any', 'not']))}"
             )
     if len(predicates) == 1:
         return predicates[0]
@@ -213,7 +226,7 @@ class Rule:
     tags: Mapping[str, Any] = field(default_factory=dict)
     _predicate: Predicate | None = field(default=None, repr=False, compare=False)
 
-    def compile(self) -> "Rule":
+    def compile(self) -> Rule:
         self._predicate = compile_condition(self.when)
         return self
 
@@ -224,7 +237,7 @@ class Rule:
         return self._predicate(ctx)
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "Rule":
+    def from_dict(cls, data: Mapping[str, Any]) -> Rule:
         try:
             rule_id = str(data["id"])
             action = Action(str(data["action"]))
@@ -273,7 +286,7 @@ class Policy:
         return f"{self.id}@{self.version}"
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any], *, source: str = "unknown") -> "Policy":
+    def from_dict(cls, data: Mapping[str, Any], *, source: str = "unknown") -> Policy:
         if not isinstance(data, Mapping):
             raise PolicyError("policy document must be a mapping")
         unknown = set(data) - {

@@ -39,7 +39,7 @@ from __future__ import annotations
 import hashlib
 import re
 import secrets as _secrets
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 from ..config import RedactionConfig
 from ..types import Finding, Span

@@ -29,7 +29,7 @@ class BlockedError(KeeperError):
     re-raise a domain specific error.
     """
 
-    def __init__(self, decision: "Decision") -> None:
+    def __init__(self, decision: Decision) -> None:
         self.decision = decision
         reasons = ", ".join(r.summary for r in decision.reasons) or "policy violation"
         super().__init__(

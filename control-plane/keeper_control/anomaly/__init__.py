@@ -1,11 +1,11 @@
 """Cross-application anomaly detection."""
 
 from .detectors import (
+    DEFAULT_DETECTORS,
     AnomalyDetector,
     AnomalyFinding,
     CoverageGapDetector,
     CrossApplicationProbeDetector,
-    DEFAULT_DETECTORS,
     NewAttackSurfaceDetector,
     RepeatedInjectionDetector,
     VolumeSpikeDetector,
@@ -13,11 +13,11 @@ from .detectors import (
 )
 
 __all__ = [
+    "DEFAULT_DETECTORS",
     "AnomalyDetector",
     "AnomalyFinding",
     "CoverageGapDetector",
     "CrossApplicationProbeDetector",
-    "DEFAULT_DETECTORS",
     "NewAttackSurfaceDetector",
     "RepeatedInjectionDetector",
     "VolumeSpikeDetector",

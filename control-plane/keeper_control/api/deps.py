@@ -22,7 +22,7 @@ from typing import Any
 from fastapi import Depends, Header, HTTPException, Request, status
 
 from ..alerting.engine import AlertEngine
-from ..config import Settings, get_settings
+from ..config import Settings
 from ..siem.exporters import SIEMForwarder
 from ..store.repository import Repository
 

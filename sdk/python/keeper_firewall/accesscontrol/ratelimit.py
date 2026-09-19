@@ -31,8 +31,9 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Callable, Mapping
+from typing import Any
 
 from ..errors import RateLimitError
 from ..types import Principal
@@ -52,7 +53,7 @@ class Quota:
         return self.rpm / 60.0
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "Quota":
+    def from_dict(cls, data: Mapping[str, Any]) -> Quota:
         return cls(
             rpm=int(data.get("rpm", 60)),
             burst=int(data.get("burst", max(1, int(data.get("rpm", 60)) // 6))),
@@ -211,7 +212,7 @@ class RateLimiter:
         for scope in due:
             try:
                 response = self.lease_client(scope, consumed[scope])
-            except Exception:  # noqa: BLE001 - lease failure falls back to local
+            except Exception:
                 # Fail to the *local* quota, not to unlimited: an unreachable
                 # control plane must not raise anyone's limit.
                 with self._lock:

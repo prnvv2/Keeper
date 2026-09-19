@@ -36,8 +36,9 @@ from __future__ import annotations
 
 import re
 import threading
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 from ..types import (
     Action,
@@ -54,7 +55,7 @@ from ..types import (
 
 _WORD = re.compile(r"[a-z0-9_.\-]{3,}")
 _STOP = frozenset(
-    "the and for with from that this when where what have has was were are you your our their".split()
+    ["the", "and", "for", "with", "from", "that", "this", "when", "where", "what", "have", "has", "was", "were", "are", "you", "your", "our", "their"]
 )
 
 
@@ -148,7 +149,7 @@ class MemoryFirewall:
                 )
             if decision.action is Action.REDACT and decision.payload is not None:
                 content = decision.payload
-                transformations = tuple(transformations) + ("keeper_redaction",)
+                transformations = (*transformations, "keeper_redaction")
 
         record = MemoryRecord(
             content=content,

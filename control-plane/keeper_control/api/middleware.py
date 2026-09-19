@@ -4,7 +4,7 @@ Currently one concern: decompressing request bodies.
 
 The SDK gzips telemetry batches above a few kilobytes, which is most real
 batches — an audit event carrying findings, evidence and a redacted payload is
-1–4 KB, so a batch of fifty is well past the threshold. Compression matters
+1-4 KB, so a batch of fifty is well past the threshold. Compression matters
 here: telemetry is the highest-volume thing crossing this boundary, and audit
 events are JSON with enormously repetitive keys, so gzip typically takes 80% off
 the wire.
@@ -108,4 +108,4 @@ async def _reject(send: Send, detail: str) -> None:
     await send({"type": "http.response.body", "body": payload})
 
 
-__all__ = ["DecompressRequestMiddleware", "MAX_DECOMPRESSED_BYTES", "gzip"]
+__all__ = ["MAX_DECOMPRESSED_BYTES", "DecompressRequestMiddleware", "gzip"]

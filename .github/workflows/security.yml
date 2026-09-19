@@ -47,9 +47,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The official image, scanning the whole history. gitleaks-action scans
+      # only the pushed range, and fails outright when that range starts at a
+      # root commit (a force-pushed or first push has no parent to diff from).
+      - name: Scan full history with gitleaks
+        run: docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git /repo --redact -v --exit-code 1
 
       # The detector test fixtures contain realistic-looking keys on purpose.
       # This checks they are all non-functional patterns, not real credentials
@@ -93,7 +95,7 @@ jobs:
           file: deploy/docker/Dockerfile.control-plane
           load: true
           tags: keeper/control-plane:scan
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: keeper/control-plane:scan
           format: sarif

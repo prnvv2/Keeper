@@ -24,8 +24,9 @@ import json
 import os
 import threading
 import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Callable, Mapping, Protocol
+from typing import Any, Protocol
 
 from ..errors import AuthenticationError, ConfigurationError
 from ..types import Principal
@@ -99,7 +100,7 @@ class APIKeyProvider:
         with self._lock:
             if self._mtime == mtime:
                 return
-            with open(self.path, "r", encoding="utf-8") as fh:
+            with open(self.path, encoding="utf-8") as fh:
                 data = json.load(fh)
             self.salt = data.get("salt", self.salt)
             records: dict[str, APIKeyRecord] = {}
@@ -163,7 +164,7 @@ class CallableProvider:
             principal = self.resolver(credential, **context)
         except AuthenticationError:
             raise
-        except Exception as exc:  # noqa: BLE001 - surface as an auth failure
+        except Exception as exc:
             raise AuthenticationError(f"principal resolver failed: {exc}") from exc
         if not isinstance(principal, Principal):
             raise AuthenticationError("principal resolver must return a Principal")
@@ -227,7 +228,7 @@ class OIDCProvider:
         token = credential.split(" ", 1)[1] if credential.lower().startswith("bearer ") else credential
         try:
             claims = self.verifier(token)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise AuthenticationError(f"token verification failed: {exc}") from exc
 
         if self.issuer and claims.get("iss") != self.issuer:

@@ -68,7 +68,7 @@ def _evaluate_alerts(state: AppState, events: list[dict]) -> None:
     """Run match rules on the batch. Never raises into the request."""
     try:
         state.alerts.on_events(events)
-    except Exception:  # noqa: BLE001 - alerting must not affect ingest
+    except Exception:
         log.exception("alert evaluation failed")
 
 
