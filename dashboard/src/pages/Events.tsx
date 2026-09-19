@@ -38,6 +38,8 @@ export default function Events() {
     min_severity: params.get("min_severity") ?? "",
     stage: params.get("stage") ?? "",
     detector: params.get("detector") ?? "",
+    threat: params.get("threat") ?? "",
+    min_risk: params.get("min_risk") ?? "",
     principal_id: params.get("principal_id") ?? "",
     hours: params.get("hours") ?? "24",
   };
@@ -103,7 +105,7 @@ export default function Events() {
           </select>
           <select value={filters.stage} onChange={(e) => update("stage", e.target.value)}>
             <option value="">any stage</option>
-            {["input", "output", "stream", "tool_call", "tool_result", "retrieval", "memory_write", "memory_read", "access"].map(
+            {["input", "output", "stream", "tool_call", "tool_result", "tool_definition", "retrieval", "memory_write", "memory_read", "access"].map(
               (s) => (
                 <option key={s} value={s}>
                   {s}
@@ -141,6 +143,21 @@ export default function Events() {
             }}
             style={{ width: 140 }}
           />
+          <input
+            type="text"
+            placeholder="OWASP id (LLM01…)"
+            defaultValue={filters.threat}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") update("threat", (e.target as HTMLInputElement).value.trim().toUpperCase());
+            }}
+            style={{ width: 150 }}
+          />
+          <select value={filters.min_risk} onChange={(e) => update("min_risk", e.target.value)}>
+            <option value="">any risk</option>
+            <option value="5">medium+ (5+)</option>
+            <option value="10">high+ (10+)</option>
+            <option value="17">critical (17+)</option>
+          </select>
           {[...params.keys()].length ? (
             <button className="ghost" onClick={() => setParams(new URLSearchParams())}>
               Clear
@@ -164,6 +181,8 @@ export default function Events() {
                     <th>Application</th>
                     <th>Principal</th>
                     <th>Findings</th>
+                    <th>Risk</th>
+                    <th>Threats</th>
                     <th className="right">Latency</th>
                   </tr>
                 </thead>
@@ -195,6 +214,16 @@ export default function Events() {
                           <span className="faint">clean</span>
                         )}
                       </td>
+                      <td className="nowrap">
+                        {event.risk_score ? (
+                          <span className={`badge ${event.risk_band}`} title={`likelihood ${event.risk_likelihood} x impact ${event.risk_impact}`}>
+                            {event.risk_score} {event.risk_band}
+                          </span>
+                        ) : (
+                          <span className="faint">—</span>
+                        )}
+                      </td>
+                      <td className="mono dim nowrap">{(event.threats ?? []).slice(0, 3).join(" ")}</td>
                       <td className="right mono dim">{event.latency_ms.toFixed(1)} ms</td>
                     </tr>
                   ))}
@@ -292,6 +321,33 @@ export function EventDrawer({ event, onClose }: { event: AuditEvent; onClose: ()
             <dd className="mono">
               {event.model ?? "—"} <span className="faint">{event.provider ?? ""}</span>
             </dd>
+            <dt>Risk</dt>
+            <dd>
+              {event.risk_score ? (
+                <>
+                  <span className={`badge ${event.risk_band}`}>
+                    {event.risk_score}/25 {event.risk_band}
+                  </span>{" "}
+                  <span className="faint mono">
+                    L{event.risk_likelihood} × I{event.risk_impact}
+                  </span>
+                </>
+              ) : (
+                <span className="faint">none</span>
+              )}
+            </dd>
+            {event.threats?.length ? (
+              <>
+                <dt>OWASP</dt>
+                <dd className="row" style={{ gap: 5 }}>
+                  {event.threats.map((t) => (
+                    <Link key={t} className="badge neutral mono" to={`/events?threat=${t}`}>
+                      {t}
+                    </Link>
+                  ))}
+                </dd>
+              </>
+            ) : null}
             <dt>Policy</dt>
             <dd className="mono">{event.policy_version ?? "—"}</dd>
             <dt>SDK</dt>

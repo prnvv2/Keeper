@@ -24,7 +24,8 @@ export type Stage =
   | "retrieval"
   | "memory_write"
   | "memory_read"
-  | "access";
+  | "access"
+  | "tool_definition";
 
 export type TrustLevel = "system" | "user_confirmed" | "user" | "tool" | "retrieved" | "external";
 export type RiskTier = "low" | "medium" | "high" | "critical";
@@ -123,6 +124,8 @@ export interface Finding {
   evidence: Record<string, unknown>;
   elapsedMs: number;
   error?: string | null;
+  /** OWASP threat ids (LLMxx / ASIxx / MCPxx), stamped by the pipeline. */
+  threats?: string[];
 }
 
 export interface PolicyTrace {
@@ -145,6 +148,15 @@ export interface Decision {
   originalPayload?: string;
   elapsedMs: number;
   failModeEngaged?: string | null;
+  /** Likelihood x impact assessment; see `risk.ts`. */
+  risk?: import("./risk").RiskAssessment;
+}
+
+/** OWASP threat ids implicated by a decision, deduplicated in finding order. */
+export function decisionThreats(decision: Decision): string[] {
+  const out = new Set<string>();
+  for (const f of decision.findings) if (f.detected) for (const t of f.threats ?? []) out.add(t);
+  return [...out];
 }
 
 export const isBlocked = (decision: Decision): boolean => decision.action === "block";
@@ -231,6 +243,8 @@ export interface AuditEvent {
   tokens_out?: number | null;
   error?: string | null;
   tags: Record<string, unknown>;
+  threats: string[];
+  risk: Record<string, unknown> | null;
 }
 
 /**
@@ -250,6 +264,7 @@ export interface SerialisedFinding {
   evidence: Record<string, unknown>;
   elapsed_ms: number;
   error: string | null;
+  threats: string[];
 }
 
 export interface SerialisedTrace {
@@ -274,6 +289,7 @@ export const serialiseFinding = (finding: Finding): SerialisedFinding => ({
   evidence: finding.evidence,
   elapsed_ms: Number(finding.elapsedMs.toFixed(3)),
   error: finding.error ?? null,
+  threats: finding.threats ?? [],
 });
 
 export const serialiseTrace = (trace: PolicyTrace): SerialisedTrace => ({

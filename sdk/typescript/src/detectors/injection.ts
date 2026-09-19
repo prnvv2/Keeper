@@ -73,6 +73,44 @@ const TRUST_MULTIPLIER: Record<TrustLevel, number> = {
   external: 2,
 };
 
+const B64_CANDIDATE = /(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{16,}={0,2}(?![A-Za-z0-9+/=])/g;
+const HEX_CANDIDATE = /(?<![0-9a-fA-F])(?:[0-9a-fA-F]{2}){12,}(?![0-9a-fA-F])/g;
+const utf8 = new TextDecoder("utf-8", { fatal: true });
+
+function decodeB64(segment: string): Uint8Array {
+  const padded = segment + "=".repeat((4 - (segment.length % 4)) % 4);
+  const bin = atob(padded);
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+function decodeHex(segment: string): Uint8Array {
+  return Uint8Array.from(segment.match(/../g) ?? [], (h) => parseInt(h, 16));
+}
+
+/**
+ * Printable plaintexts hidden as base64 or hex inside `text`. Encoding is the
+ * cheapest way past a pattern library — the model decodes "aWdub3Jl..."
+ * happily, a regex does not — so candidates are decoded and rescanned.
+ */
+export function decodedSegments(text: string, limit = 8): string[] {
+  const out: string[] = [];
+  for (const [regex, decode] of [[B64_CANDIDATE, decodeB64], [HEX_CANDIDATE, decodeHex]] as const) {
+    regex.lastIndex = 0;
+    for (let m = regex.exec(text); m; m = regex.exec(text)) {
+      if (out.length >= limit) return out;
+      let plain: string;
+      try {
+        plain = utf8.decode(decode(m[0]));
+      } catch {
+        continue;
+      }
+      const printable = [...plain].filter((ch) => /[\P{C}\s]/u.test(ch)).length;
+      if (plain.length >= 8 && printable / plain.length > 0.95 && /[A-Za-z]{3,}\s+[A-Za-z]{2,}/.test(plain)) out.push(plain);
+    }
+  }
+  return out;
+}
+
 /**
  * Undo the cheap obfuscations before matching: NFKC folds fullwidth and
  * mathematical lookalikes onto ASCII, invisibles are stripped, and separator
@@ -131,6 +169,21 @@ class PromptInjectionDetector extends Detector {
       families.set(signal.family, Math.max(families.get(signal.family) ?? 0, signal.weight));
     }
 
+    // Decode-and-rescan: an instruction hidden in base64/hex counts in full,
+    // plus an obfuscation signal for having been hidden at all.
+    const decoded = decodedSegments(data.payload);
+    for (const plain of decoded) {
+      const plainN = normalise(plain);
+      let hitAny = false;
+      for (const signal of SIGNALS) {
+        if (this.disabled.has(signal.id) || !signal.pattern.test(plainN)) continue;
+        hitAny = true;
+        matched.push({ id: `encoded:${signal.id}`, family: signal.family, weight: signal.weight, note: `inside encoded payload: ${signal.note}` });
+        families.set(signal.family, Math.max(families.get(signal.family) ?? 0, signal.weight));
+      }
+      if (hitAny) families.set("obfuscation", Math.max(families.get("obfuscation") ?? 0, 0.5));
+    }
+
     const invisibleCount = (data.payload.match(INVISIBLE) ?? []).length;
     if (invisibleCount) {
       families.set("obfuscation", Math.max(families.get("obfuscation") ?? 0, this.invisibleWeight));
@@ -153,6 +206,7 @@ class PromptInjectionDetector extends Detector {
       trust: data.trust,
       trustMultiplier: multiplier,
       invisibleCharacters: invisibleCount,
+      encodedSegments: decoded.length,
       boundary: data.stage,
       escalate: matched.length > 0 && score >= this.escalateThreshold && score < this.threshold,
     };

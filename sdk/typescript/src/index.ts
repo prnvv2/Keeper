@@ -95,6 +95,48 @@ export {
   type StreamResult,
   type ToolSpec,
 } from "./runtime";
+export {
+  CodeExecutionDetector,
+  ResourceAbuseDetector,
+  SystemPromptLeakageDetector,
+  ToolPoisoningDetector,
+  UnsafeOutputDetector,
+  decodedSegments,
+  newCanary,
+  toolFingerprint,
+  toolText,
+} from "./detectors";
+export {
+  ATLAS,
+  CATEGORY_THREATS,
+  FRAMEWORKS,
+  OWASP_AGENTIC,
+  OWASP_LLM,
+  OWASP_MCP,
+  THREATS,
+  THREAT_ORDER,
+  annotate,
+  coverageReport,
+  threatsFor,
+  type Coverage,
+  type CoverageRow,
+  type Threat,
+} from "./taxonomy";
+export {
+  DEFAULT_BAND_ACTIONS,
+  RiskEngine,
+  bandFor,
+  bandRank,
+  defaultRiskConfig,
+  explainRisk,
+  parseRiskConfig,
+  riskMatrix,
+  serialiseRisk,
+  type RiskAssessment,
+  type RiskBand,
+  type RiskConfig,
+  type ThreatRisk,
+} from "./risk";
 export { Authorizer, RateLimiter, authorizerFromPolicy, parsePermission, type Quota } from "./accesscontrol";
 export { ControlPlaneClient, TelemetryShipper } from "./transport";
 export * from "./types";

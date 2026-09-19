@@ -9,6 +9,7 @@
  * safe to accept a document from the control plane at all.
  */
 
+import { bandRank, parseRiskConfig, type RiskAssessment, type RiskBand, type RiskConfig } from "./risk";
 import { PolicyError } from "./errors";
 import type { Action, Finding, PolicyTrace, RequestContext, Severity, Stage, ToolCall, TrustLevel } from "./types";
 import { escalates, nowMs, severityRank } from "./types";
@@ -64,6 +65,14 @@ const LEAF_BUILDERS: Record<string, (value: unknown) => Predicate> = {
   severity_at_least: (value) => (facts) =>
     severityRank((facts.severity as Severity) ?? "info") >= severityRank(value as Severity),
   score_at_least: (value) => (facts) => Number(facts.maxScore ?? 0) >= Number(value),
+  threat: stringPredicate("threats"),
+  risk_at_least: (value) => {
+    if (!["none", "low", "medium", "high", "critical"].includes(String(value))) {
+      throw new PolicyError(`unknown risk band '${String(value)}'; use none/low/medium/high/critical`);
+    }
+    return (facts) => bandRank((facts.riskBand as RiskBand) ?? "none") >= bandRank(value as RiskBand);
+  },
+  risk_score_at_least: (value) => (facts) => Number(facts.riskScore ?? 0) >= Number(value),
   always: (value) => () => Boolean(value),
   tag: (value) => {
     if (typeof value !== "object" || value === null) {
@@ -142,6 +151,8 @@ export interface Policy {
   rateLimits: Record<string, Record<string, unknown>>;
   modelAccess: Record<string, string[]>;
   toolAccess: Record<string, string[]>;
+  /** The `risk:` section: band actions and impact overrides for the matrix. */
+  risk: RiskConfig;
   etag?: string;
   loadedAtMs: number;
   source: string;
@@ -169,7 +180,7 @@ export function parsePolicy(document: Record<string, any>, source = "unknown"): 
   if (!document || typeof document !== "object") throw new PolicyError("policy document must be a mapping");
   const known = new Set([
     "id", "version", "description", "rules", "detectors", "defaults",
-    "rate_limits", "model_access", "tool_access", "metadata",
+    "rate_limits", "model_access", "tool_access", "metadata", "risk",
   ]);
   const unknown = Object.keys(document).filter((k) => !known.has(k));
   if (unknown.length) throw new PolicyError(`unknown policy keys: ${unknown.sort().join(", ")}`);
@@ -191,6 +202,7 @@ export function parsePolicy(document: Record<string, any>, source = "unknown"): 
     rateLimits: document.rate_limits ?? {},
     modelAccess: document.model_access ?? {},
     toolAccess: document.tool_access ?? {},
+    risk: parseRiskConfig(document.risk),
     loadedAtMs: nowMs(),
     source,
   };
@@ -264,7 +276,7 @@ export function buildFacts(
   stage: Stage,
   context: RequestContext,
   findings: Finding[],
-  options: { payload?: string; trust?: TrustLevel; toolCall?: ToolCall } = {},
+  options: { payload?: string; trust?: TrustLevel; toolCall?: ToolCall; risk?: RiskAssessment } = {},
 ): Facts {
   const fired = findings.filter((f) => f.detected);
   return {
@@ -287,6 +299,9 @@ export function buildFacts(
     tags: context.tags,
     payload: options.payload,
     turnCount: context.messages.length,
+    threats: [...new Set(fired.flatMap((f) => f.threats ?? []))].sort(),
+    riskScore: options.risk?.score ?? 0,
+    riskBand: options.risk?.band ?? "none",
   };
 }
 

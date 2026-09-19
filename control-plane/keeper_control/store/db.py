@@ -92,7 +92,15 @@ audit_events = Table(
     Column("error", Text),
     Column("tags", JSON),
     Column("search_text", Text),  # denormalised haystack for LIKE search
+    # OWASP threat ids and the risk-matrix cell, lifted out of the event so the
+    # risk views aggregate with plain GROUP BYs.
+    Column("threats", JSON),
+    Column("risk_score", Integer),
+    Column("risk_band", String(16)),
+    Column("risk_likelihood", Integer),
+    Column("risk_impact", Integer),
     Index("ix_events_app_time", "application", "timestamp_ms"),
+    Index("ix_events_risk_time", "risk_score", "timestamp_ms"),
     Index("ix_events_action_time", "action", "timestamp_ms"),
     Index("ix_events_severity_time", "severity", "timestamp_ms"),
 )
@@ -210,3 +218,27 @@ def init_db(engine: Engine) -> None:
     than pretending ``create_all`` is a migration strategy.
     """
     metadata.create_all(engine)
+    _add_missing_columns(engine)
+
+
+def _add_missing_columns(engine: Engine) -> None:
+    """Additive-only schema evolution for databases created by older versions.
+
+    ``create_all`` never alters an existing table, so a v0.1 database would
+    lack the threat/risk columns. Adding nullable columns is safe on every
+    supported backend; anything more invasive is Alembic's job.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    for table in metadata.sorted_tables:
+        if not inspector.has_table(table.name):
+            continue
+        existing = {c["name"] for c in inspector.get_columns(table.name)}
+        missing = [c for c in table.columns if c.name not in existing]
+        if not missing:
+            continue
+        with engine.begin() as conn:
+            for column in missing:
+                ddl = column.type.compile(dialect=engine.dialect)
+                conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {column.name} {ddl}'))

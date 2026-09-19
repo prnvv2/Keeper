@@ -48,6 +48,8 @@ from .observability.events import EventBuilder, FanoutSink
 from .observability.metrics import Metrics
 from .policy.engine import build_facts
 from .policy.loader import PolicyProvider
+from .risk import RiskAssessment, RiskEngine
+from .taxonomy import THREATS, annotate
 from .types import (
     Action,
     Decision,
@@ -68,12 +70,13 @@ THREADED_TIMEOUT_MS = 400
 STAGE_DEFAULTS: dict[Stage, tuple[str, ...]] = {
     Stage.INPUT: DEFAULT_INPUT_DETECTORS,
     Stage.OUTPUT: DEFAULT_OUTPUT_DETECTORS,
-    Stage.STREAM: ("secret_leakage", "banned_topics", "prompt_injection"),
+    Stage.STREAM: ("secret_leakage", "system_prompt_leakage", "unsafe_output", "banned_topics", "prompt_injection"),
     Stage.TOOL_CALL: DEFAULT_RUNTIME_DETECTORS,
     Stage.TOOL_RESULT: DEFAULT_RUNTIME_DETECTORS,
     Stage.RETRIEVAL: ("prompt_injection", "authority_claim", "secrets", "token_flow"),
     Stage.MEMORY_WRITE: ("token_flow", "prompt_injection", "secrets", "pii"),
     Stage.MEMORY_READ: (),
+    Stage.TOOL_DEFINITION: ("tool_poisoning", "secrets"),
 }
 
 
@@ -178,12 +181,26 @@ class Pipeline:
         )
 
         findings, fail_mode = self._run_detectors(names, data, budget_ms)
-        traces, policy_fail = self._evaluate_policy(stage, context, findings, payload, trust, tool_call)
+        # Name every finding in OWASP terms, then place the stage on the risk
+        # matrix *before* policy runs, so rules can match on threat and band.
+        annotate(findings, stage)
+        risk_engine = RiskEngine(self.policy.policy.risk)
+        risk = risk_engine.assess(findings, stage, tool_call=tool_call, application=context.application)
+        traces, policy_fail = self._evaluate_policy(stage, context, findings, payload, trust, tool_call, risk)
         fail_mode = fail_mode or policy_fail
+        risk_trace = risk_engine.trace(
+            risk,
+            policy_id=self.policy.policy.id,
+            policy_version=self.policy.policy.version,
+            dry_run=bool(getattr(self.policy.engine, "dry_run", False)),
+        )
+        if risk_trace is not None:
+            traces.append(risk_trace)
 
         decision = Decision.combine(stage, context.correlation_id, findings, traces, payload=payload)
         decision.original_payload = payload
         decision.fail_mode_engaged = fail_mode
+        decision.risk = risk
 
         if fail_mode == FAIL_CLOSED and decision.action is Action.ALLOW:
             # Fail-closed engaged but nothing fired: the *reason* we are here is
@@ -351,9 +368,12 @@ class Pipeline:
         payload: str,
         trust: TrustLevel,
         tool_call: ToolCall | None,
+        risk: RiskAssessment | None = None,
     ) -> tuple[list[PolicyTrace], str | None]:
         engine = self.policy.engine
-        facts = build_facts(stage, context, findings, payload=payload, trust=trust, tool_call=tool_call)
+        facts = build_facts(
+            stage, context, findings, payload=payload, trust=trust, tool_call=tool_call, risk=risk
+        )
         start = time.perf_counter()
         try:
             traces = engine.evaluate(facts)
@@ -400,6 +420,19 @@ class Pipeline:
     def _record_metrics(self, stage: Stage, decision: Decision, context: RequestContext) -> None:
         self.metrics.observe("pipeline_latency_ms", decision.elapsed_ms, stage=stage.value)
         self.metrics.inc("requests_total", stage=stage.value, action=decision.action.value)
+        for finding in decision.findings:
+            for tid in finding.threats:
+                threat = THREATS[tid]
+                self.metrics.inc(
+                    "threat_detections_total",
+                    threat=tid,
+                    framework=threat.framework,
+                    stage=stage.value,
+                    action=decision.action.value,
+                )
+        if decision.risk is not None and decision.risk.score:
+            self.metrics.observe("risk_score", float(decision.risk.score), stage=stage.value)
+            self.metrics.inc("risk_decisions_total", band=decision.risk.band.value, stage=stage.value)
         if decision.action is Action.BLOCK:
             reasons = decision.reasons
             self.metrics.inc(
@@ -454,10 +487,11 @@ def _tagged(finding: Finding, note: str) -> Finding:
         evidence=evidence,
         elapsed_ms=finding.elapsed_ms,
         error=finding.error,
+        threats=finding.threats,
     )
 
 
 _PROMPT_STAGES = frozenset(
-    {Stage.INPUT, Stage.RETRIEVAL, Stage.TOOL_CALL, Stage.TOOL_RESULT, Stage.MEMORY_WRITE}
+    {Stage.INPUT, Stage.RETRIEVAL, Stage.TOOL_CALL, Stage.TOOL_RESULT, Stage.MEMORY_WRITE, Stage.TOOL_DEFINITION}
 )
 _RESPONSE_STAGES = frozenset({Stage.OUTPUT, Stage.STREAM})

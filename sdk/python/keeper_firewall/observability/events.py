@@ -111,6 +111,8 @@ class EventBuilder:
             tokens_out=tokens_out,
             error=error,
             tags=tags,
+            threats=decision.threats,
+            risk=decision.risk.to_dict() if decision.risk is not None else None,
         )
 
 

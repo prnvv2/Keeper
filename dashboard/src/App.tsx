@@ -18,11 +18,13 @@ import Fleet from "./pages/Fleet";
 import Investigate from "./pages/Investigate";
 import Overview from "./pages/Overview";
 import Policies from "./pages/Policies";
+import Risk from "./pages/Risk";
 
 const NAV = [
   { to: "/", label: "Live traffic", end: true },
   { to: "/events", label: "Audit log" },
   { to: "/investigate", label: "Investigate" },
+  { to: "/risk", label: "Risk & OWASP" },
   { to: "/analytics", label: "Analytics" },
   { to: "/fleet", label: "Fleet" },
   { to: "/policies", label: "Policy" },
@@ -144,6 +146,7 @@ export default function App() {
           <Route path="/events" element={<Events />} />
           <Route path="/investigate" element={<Investigate />} />
           <Route path="/investigate/:correlationId" element={<Investigate />} />
+          <Route path="/risk" element={<Risk />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/fleet" element={<Fleet />} />
           <Route path="/policies" element={<Policies />} />

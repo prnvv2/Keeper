@@ -200,6 +200,12 @@ class CEFExporter:
             "deviceProcessName": event.get("stage"),
             "cn1Label": "latencyMs",
             "cn1": event.get("latency_ms"),
+            "cs5Label": "owaspThreats",
+            "cs5": ",".join(event.get("threats") or []),
+            "cn2Label": "riskScore",
+            "cn2": event.get("risk_score") or 0,
+            "cs6Label": "riskBand",
+            "cs6": event.get("risk_band") or "none",
             "deviceExternalId": event.get("instance_id"),
         }
         parts = [f"{k}={_cef_escape_value(v)}" for k, v in extension.items() if v not in (None, "")]
@@ -288,6 +294,9 @@ class OTLPExporter:
                 _kv("keeper.policy_version", event.get("policy_version")),
                 _kv("keeper.detectors", ",".join(event.get("detectors_fired") or [])),
                 _kv("keeper.categories", ",".join(event.get("categories") or [])),
+                _kv("keeper.threats", ",".join(event.get("threats") or [])),
+                _kv("keeper.risk_score", event.get("risk_score") or 0),
+                _kv("keeper.risk_band", event.get("risk_band") or "none"),
             ],
         }
         if event.get("trace_id"):

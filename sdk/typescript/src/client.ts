@@ -16,7 +16,7 @@
 
 import { Authorizer, RateLimiter, authorizerFromPolicy } from "./accesscontrol";
 import { loadConfig, type KeeperConfig, type KeeperOptions } from "./config";
-import type { Detector } from "./detectors";
+import { newCanary, toolText, type Detector } from "./detectors";
 import { AuthorizationError, BlockedError, RateLimitError } from "./errors";
 import {
   EventBuilder,
@@ -29,6 +29,7 @@ import {
 } from "./observability";
 import { Pipeline } from "./pipeline";
 import { PolicyProvider, type Policy } from "./policy";
+import { coverageReport, type CoverageRow } from "./taxonomy";
 import { CallableProvider, EchoProvider, type Provider } from "./providers";
 import { MemoryFirewall, StreamGuard, ToolGuard, defaultToolSpecs, type ToolSpec } from "./runtime";
 import { ControlPlaneClient, TelemetryShipper } from "./transport";
@@ -292,6 +293,44 @@ export class Keeper {
     return this.tools.checkCall(makeToolCall(name, args), context, trust);
   }
 
+  /**
+   * Screen MCP / function-calling tool definitions before the model sees them
+   * (OWASP MCP03). Accepts MCP `{name, description, inputSchema}`, OpenAI
+   * `{type: "function", function: {...}}` or Anthropic `{name, description,
+   * input_schema}` shapes. Definitions are pinned: a later change to a pinned
+   * definition is reported as a rug pull. Drop the blocked ones.
+   */
+  checkToolDefinitions(
+    tools: Record<string, any>[],
+    context = this.context(),
+    server = "default",
+  ): [Record<string, any>, Decision][] {
+    return tools.map((raw) => {
+      const definition = (raw?.function ?? raw) as Record<string, any>;
+      const decision = this.pipeline.evaluate("tool_definition", toolText(definition), context, {
+        trust: "external",
+        metadata: { toolDefinition: definition, server, tool: definition.name },
+      });
+      return [raw, decision];
+    });
+  }
+
+  /**
+   * A fresh canary token to embed in your system prompt. If it ever appears in
+   * model output, `system_prompt_leakage` blocks the response (OWASP LLM07).
+   */
+  canary(): string {
+    const token = newCanary();
+    const detector = this.pipeline.detector("system_prompt_leakage") as { addCanary?(t: string): void } | undefined;
+    detector?.addCanary?.(token);
+    return token;
+  }
+
+  /** OWASP LLM / Agentic / MCP coverage given the detectors enabled here. */
+  coverage(): CoverageRow[] {
+    return coverageReport(this.pipeline.detectorNames);
+  }
+
   // -- the main entry point ------------------------------------------------
 
   async chat(
@@ -320,6 +359,7 @@ export class Keeper {
     const inputDecision = this.pipeline.evaluate("input", prompt, context, {
       trust: turns[turns.length - 1]?.trust ?? "user",
       history: turns.slice(0, -1),
+      metadata: { maxTokens: providerOptions.max_tokens ?? providerOptions.maxTokens },
     });
 
     if (inputDecision.action === "block") {

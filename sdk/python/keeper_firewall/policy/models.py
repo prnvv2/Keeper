@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Sequence
 
 from ..errors import PolicyError
+from ..risk import RiskBand, RiskConfig
 from ..types import Action, Severity, Stage
 
 # ---------------------------------------------------------------------------
@@ -93,6 +94,9 @@ LEAF_BUILDERS: dict[str, Callable[[Any], Predicate]] = {
     "label": lambda v: lambda c: _match_any(c.get("labels"), _as_list(v)),
     "severity_at_least": lambda v: lambda c: _severity_rank(c.get("severity")) >= _severity_rank(v),
     "score_at_least": lambda v: lambda c: float(c.get("max_score") or 0.0) >= float(v),
+    "threat": lambda v: lambda c: _match_any(c.get("threats"), _as_list(v)),
+    "risk_at_least": lambda v: _risk_band_predicate(v),
+    "risk_score_at_least": lambda v: lambda c: int(c.get("risk_score") or 0) >= int(v),
     "tag": lambda v: _tag_predicate(v),
     "content_matches": lambda v: _regex_predicate(v),
     "always": lambda v: (lambda c: bool(v)),
@@ -106,6 +110,21 @@ def _severity_rank(value: Any) -> int:
         return Severity(str(value)).rank()
     except ValueError as exc:
         raise PolicyError(f"unknown severity {value!r}") from exc
+
+
+def _risk_band_predicate(value: Any) -> Predicate:
+    try:
+        wanted = RiskBand(str(value)).rank()
+    except ValueError as exc:
+        raise PolicyError(f"unknown risk band {value!r}; use none/low/medium/high/critical") from exc
+
+    def check(ctx: Mapping[str, Any]) -> bool:
+        try:
+            return RiskBand(str(ctx.get("risk_band") or "none")).rank() >= wanted
+        except ValueError:
+            return False
+
+    return check
 
 
 def _tag_predicate(spec: Any) -> Predicate:
@@ -243,6 +262,8 @@ class Policy:
     model_access: Mapping[str, Sequence[str]] = field(default_factory=dict)
     tool_access: Mapping[str, Sequence[str]] = field(default_factory=dict)
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    #: The ``risk:`` section: band actions and impact overrides for the matrix.
+    risk: RiskConfig = field(default_factory=RiskConfig)
     etag: str | None = None
     loaded_at_ms: int = 0
     source: str = "builtin"
@@ -257,7 +278,7 @@ class Policy:
             raise PolicyError("policy document must be a mapping")
         unknown = set(data) - {
             "id", "version", "description", "rules", "detectors", "defaults",
-            "rate_limits", "model_access", "tool_access", "metadata",
+            "rate_limits", "model_access", "tool_access", "metadata", "risk",
         }
         if unknown:
             raise PolicyError(f"unknown policy keys: {', '.join(sorted(unknown))}")
@@ -281,6 +302,7 @@ class Policy:
             model_access=dict(data.get("model_access") or {}),
             tool_access=dict(data.get("tool_access") or {}),
             metadata=dict(data.get("metadata") or {}),
+            risk=RiskConfig.from_dict(data.get("risk")),
             source=source,
         )
 
@@ -295,6 +317,14 @@ class Policy:
             "model_access": {k: list(v) for k, v in self.model_access.items()},
             "tool_access": {k: list(v) for k, v in self.tool_access.items()},
             "metadata": dict(self.metadata),
+            "risk": {
+                "enforce": self.risk.enforce,
+                "actions": {b.value: a.value for b, a in self.risk.actions.items()},
+                "impact": dict(self.risk.impact_overrides),
+                "tool_impact": {t.value: v for t, v in self.risk.tool_impact.items()},
+                "likelihood_cuts": list(self.risk.likelihood_cuts),
+                "application_impact": dict(self.risk.application_impact),
+            },
             "rules": [
                 {
                     "id": r.id,

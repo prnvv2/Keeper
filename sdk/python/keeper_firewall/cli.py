@@ -11,6 +11,8 @@ mint an API key without writing a script to do it.
     keeper policy dry-run candidate.yaml --events audit.jsonl
     keeper keygen --principal svc:ci --roles service
     keeper detectors
+    keeper coverage --framework owasp-agentic-2026
+    keeper gateway --upstream https://api.openai.com/v1 --port 8787
 """
 
 from __future__ import annotations
@@ -46,6 +48,10 @@ def _print_decision(decision: Any, payload: str, verbose: bool) -> None:
     print(f"{icon}  {payload[:70]!r}")
     for finding in fired:
         print(f"       - {finding.detector} [{finding.severity.value}] {finding.summary}")
+    risk = getattr(decision, "risk", None)
+    if risk is not None and risk.score:
+        print(f"       risk {risk.score}/25 [{risk.band.value}]  L{risk.likelihood} x I{risk.impact}"
+              f"  threats: {', '.join(decision.threats)}")
     for trace in decision.policy_traces:
         if trace.matched:
             print(f"       - policy {trace.policy_id}@{trace.policy_version} rule={trace.rule_id} -> {trace.action.value}")
@@ -151,6 +157,53 @@ def cmd_health(args: argparse.Namespace) -> int:
         return 0
 
 
+def cmd_coverage(args: argparse.Namespace) -> int:
+    from .taxonomy import FRAMEWORKS, coverage_report
+
+    with _keeper(args) as keeper:
+        frameworks = [args.framework] if args.framework else list(FRAMEWORKS)
+        rows = coverage_report(keeper.pipeline.detector_names, frameworks=frameworks)
+        if args.json:
+            print(json.dumps([r.to_dict() for r in rows], indent=2))
+            return 0
+        marks = {"covered": "COVERED ", "partial": "PARTIAL ", "observed": "OBSERVED", "disabled": "DISABLED",
+                 "out_of_scope": "--------"}
+        current = None
+        for row in rows:
+            if row.threat.framework != current:
+                current = row.threat.framework
+                print(f"\n{current}")
+            via = ", ".join(row.active_detectors + row.threat.controls) or "-"
+            print(f"  {row.threat.id:<6} {marks[row.status]}  {row.threat.title:<52} {via}")
+            if args.verbose and row.threat.note:
+                print(f"         {row.threat.note}")
+        return 0
+
+
+def cmd_gateway(args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+
+        from .gateway import GatewayConfig, KeeperGateway
+    except ImportError as exc:
+        print(f"error: {exc}. Install with: pip install 'keeper-firewall[gateway]'", file=sys.stderr)
+        return 2
+    import os
+
+    config = GatewayConfig(
+        upstream=args.upstream,
+        anthropic_upstream=args.anthropic_upstream,
+        upstream_api_key=os.environ.get(args.upstream_key_env) if args.upstream_key_env else None,
+        anthropic_api_key=os.environ.get(args.anthropic_key_env) if args.anthropic_key_env else None,
+        block_mode=args.block_mode,
+    )
+    keeper = _keeper(args)
+    gateway = KeeperGateway(keeper, config)
+    print(f"Keeper gateway on http://{args.host}:{args.port}  ->  {config.upstream}  |  {config.anthropic_upstream}")
+    uvicorn.run(gateway.app, host=args.host, port=args.port, log_level=args.log_level)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="keeper", description="Keeper AI firewall CLI")
     parser.add_argument("--version", action="version", version=f"keeper-firewall {__version__}")
@@ -191,6 +244,23 @@ def build_parser() -> argparse.ArgumentParser:
     keygen.add_argument("--key-id")
     keygen.add_argument("--prefix", default="kf")
     keygen.set_defaults(func=cmd_keygen)
+
+    cov = sub.add_parser("coverage", help="OWASP LLM / Agentic / MCP coverage of this configuration")
+    cov.add_argument("--framework", choices=["owasp-llm-2025", "owasp-agentic-2026", "owasp-mcp-2025"])
+    cov.add_argument("--json", action="store_true")
+    cov.add_argument("-v", "--verbose", action="store_true")
+    cov.set_defaults(func=cmd_coverage)
+
+    gw = sub.add_parser("gateway", help="run the OpenAI/Anthropic-compatible firewall proxy")
+    gw.add_argument("--upstream", default="https://api.openai.com/v1", help="OpenAI-compatible base URL")
+    gw.add_argument("--anthropic-upstream", default="https://api.anthropic.com")
+    gw.add_argument("--upstream-key-env", help="env var holding the upstream key (replaces client keys)")
+    gw.add_argument("--anthropic-key-env", help="env var holding the Anthropic key (replaces client keys)")
+    gw.add_argument("--block-mode", default="error", choices=["error", "completion"])
+    gw.add_argument("--host", default="127.0.0.1")
+    gw.add_argument("--port", type=int, default=8787)
+    gw.add_argument("--log-level", default="info")
+    gw.set_defaults(func=cmd_gateway)
 
     sub.add_parser("detectors", help="list available detectors").set_defaults(func=cmd_detectors)
     sub.add_parser("health", help="print SDK health as JSON").set_defaults(func=cmd_health)

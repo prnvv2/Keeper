@@ -398,6 +398,59 @@ class Keeper:
             ToolCall(name=name, arguments=dict(arguments or {})), context, trust=trust, **kwargs
         )
 
+    def check_tool_definitions(
+        self,
+        tools: Sequence[Mapping[str, Any]],
+        context: RequestContext | None = None,
+        *,
+        server: str = "default",
+    ) -> list[tuple[Mapping[str, Any], Decision]]:
+        """Screen MCP / function-calling tool definitions before the model sees them.
+
+        Accepts MCP ``{"name", "description", "inputSchema"}`` dicts, OpenAI
+        ``{"type": "function", "function": {...}}`` dicts, or Anthropic
+        ``{"name", "description", "input_schema"}`` dicts. Each definition is
+        scanned for embedded directives (OWASP MCP03) and pinned: a later
+        change to a pinned definition is reported as a rug pull.
+        Returns ``(definition, decision)`` pairs; drop the blocked ones.
+        """
+        from .detectors.agentic import tool_text
+
+        context = context or self.context()
+        results: list[tuple[Mapping[str, Any], Decision]] = []
+        for raw in tools:
+            definition = raw.get("function", raw) if isinstance(raw, Mapping) else {}
+            decision = self.pipeline.evaluate(
+                Stage.TOOL_DEFINITION,
+                tool_text(definition),
+                context,
+                trust=TrustLevel.EXTERNAL,
+                metadata={"tool_definition": definition, "server": server, "tool": definition.get("name")},
+            )
+            results.append((raw, decision))
+        return results
+
+    def canary(self) -> str:
+        """A fresh canary token to embed in your system prompt.
+
+        If the token ever appears in model output, the ``system_prompt_leakage``
+        detector blocks the response (OWASP LLM07). Put it somewhere the model
+        has no reason to repeat, e.g. ``"Internal reference: KPR-3f9a..."``.
+        """
+        from .detectors.leakage import new_canary
+
+        token = new_canary()
+        detector = self.pipeline.detector("system_prompt_leakage")
+        if detector is not None and hasattr(detector, "add_canary"):
+            detector.add_canary(token)
+        return token
+
+    def coverage(self) -> list[dict[str, Any]]:
+        """OWASP LLM / Agentic / MCP coverage given the detectors enabled here."""
+        from .taxonomy import coverage_report
+
+        return [row.to_dict() for row in coverage_report(self.pipeline.detector_names)]
+
     # -- the main entry point ---------------------------------------------
 
     def chat(
@@ -431,6 +484,7 @@ class Keeper:
             input_decision = self.pipeline.evaluate(
                 Stage.INPUT, prompt, context, trust=turns[-1].trust if turns else TrustLevel.USER,
                 history=history,
+                metadata={"max_tokens": provider_kwargs.get("max_tokens")},
             )
             span.set("keeper.input_action", input_decision.action.value)
 

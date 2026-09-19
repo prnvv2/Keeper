@@ -10,8 +10,11 @@ Quickstart::
 
 Everything the firewall decides produces a structured audit event. With no
 control plane configured those events stay local (in-memory plus an optional
-JSONL file); point ``endpoint=`` at a Keeper control plane and the same events
-feed the dashboard, alerting, and your SIEM.
+JSONL file); set ``KEEPER_ENDPOINT`` (or ``telemetry={"endpoint": ...}``) to a
+Keeper control plane and the same events feed the dashboard, alerting, and
+your SIEM. Every decision is named in OWASP LLM / Agentic / MCP terms
+(``decision.threats``) and scored on a likelihood x impact matrix
+(``decision.risk``).
 """
 
 from .client import Keeper
@@ -27,7 +30,8 @@ from .config import (
     RuntimeConfig,
     TelemetryConfig,
 )
-from .detectors import Detector, DetectorInput, register as register_detector
+from .detectors import Detector, DetectorInput
+from .detectors import register as register_detector
 from .errors import (
     AuthenticationError,
     AuthorizationError,
@@ -46,7 +50,9 @@ from .providers import (
     EchoProvider,
     OpenAICompatibleProvider,
 )
+from .risk import RiskAssessment, RiskBand, RiskConfig, RiskEngine
 from .runtime.guardrails import ToolSpec
+from .taxonomy import THREATS, Threat, coverage_report
 from .types import (
     Action,
     AuditEvent,
@@ -69,6 +75,10 @@ from .types import (
 from .version import SCHEMA_VERSION, __version__
 
 __all__ = [
+    "FAIL_CLOSED",
+    "FAIL_OPEN",
+    "SCHEMA_VERSION",
+    "THREATS",
     "AccessControlConfig",
     "Action",
     "AnthropicProvider",
@@ -85,8 +95,6 @@ __all__ = [
     "DetectorInput",
     "Document",
     "EchoProvider",
-    "FAIL_CLOSED",
-    "FAIL_OPEN",
     "Finding",
     "GuardedResponse",
     "Keeper",
@@ -104,18 +112,23 @@ __all__ = [
     "RateLimitError",
     "RedactionConfig",
     "RequestContext",
+    "RiskAssessment",
+    "RiskBand",
+    "RiskConfig",
+    "RiskEngine",
     "RiskTier",
     "Rule",
     "RuntimeConfig",
-    "SCHEMA_VERSION",
     "Severity",
     "Span",
     "Stage",
     "TelemetryConfig",
+    "Threat",
     "ToolCall",
     "ToolSpec",
     "TransportError",
     "TrustLevel",
     "__version__",
+    "coverage_report",
     "register_detector",
 ]

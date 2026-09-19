@@ -13,11 +13,12 @@
 # an interaction *less* restricted than a detector already decided.
 
 id: keeper.default
-version: 1.0.0
+version: 2.0.0
 description: >
   Balanced starting policy: block credential egress and confirmed attacks,
-  redact personal data rather than failing the request, flag the rest for
-  review.
+  redact personal data rather than failing the request, escalate on the risk
+  matrix, flag the rest for review. Rules reference OWASP LLM (2025),
+  Agentic (2026) and MCP (2025) threat ids.
 
 defaults:
   # What happens when no rule matches. `allow` is right for almost everyone:
@@ -40,6 +41,24 @@ detectors:
     action: redact
   trajectory:
     threshold: 0.65
+
+# ---------------------------------------------------------------------------
+# Risk matrix: likelihood (detector confidence, 1-5) x impact (threat, sink,
+# asset, 1-5). The band of the *residual* risk (after redaction) maps to an
+# action. It only ever escalates: it can turn a flag into a block, never a
+# block into an allow. Set `enforce: false` to score and report without acting.
+#
+#   score  1-4 low   5-9 medium   10-16 high   20-25 critical
+# ---------------------------------------------------------------------------
+risk:
+  enforce: true
+  actions: {low: allow, medium: flag, high: block, critical: block}
+  # Raise the impact of a threat for your organisation (1-5):
+  # impact: {LLM09: 4, LLM07: 4}
+  # Asset criticality: every threat against these applications is at least this bad.
+  # application_impact: {payments-agent: 5, hr-assistant: 4}
+  # Impact of tool calls by the sink's risk tier:
+  # tool_impact: {low: 2, medium: 3, high: 4, critical: 5}
 
 # ---------------------------------------------------------------------------
 # Rate limits. Scopes are charged narrowest-first; a request rejected by one
@@ -115,6 +134,37 @@ rules:
     severity: critical
     message: This action was not authorised by a sufficiently trusted source.
 
+  # -- agentic & MCP (OWASP ASI / MCP) ---------------------------------------
+  - id: block-tool-poisoning
+    description: >
+      MCP03 / ASI04. A tool definition carrying embedded directives, or one that
+      changed after it was pinned (rug pull). The tool is not offered to the model.
+    when:
+      threat: MCP03
+      severity_at_least: high
+    action: block
+    severity: critical
+    message: A tool definition failed integrity screening and was not loaded.
+
+  - id: block-code-execution
+    description: ASI05 / MCP05. Execution payloads or command injection in tool arguments.
+    when:
+      threat: [ASI05, MCP05]
+      stage: tool_call
+      severity_at_least: high
+    action: block
+    severity: critical
+    message: This tool call contained an execution payload and was refused.
+
+  - id: block-system-prompt-leak
+    description: LLM07. Canary tokens or verbatim system prompt content in a response.
+    when:
+      threat: LLM07
+      severity_at_least: high
+    action: block
+    severity: high
+    message: The response was withheld because it disclosed internal instructions.
+
   # -- multi-turn ------------------------------------------------------------
   - id: block-multi-turn-escalation
     description: >
@@ -164,6 +214,14 @@ rules:
     stop: false
 
   # -- observability-only ----------------------------------------------------
+  - id: flag-agentic-threats
+    description: Any OWASP Agentic finding, whatever else happened. Makes ASI events one search away.
+    when:
+      threat: "ASI*"
+    action: flag
+    severity: low
+    stop: false
+
   # These change nothing. They exist so the events land in the dashboard with a
   # named rule attached, which makes them searchable and alertable.
   - id: flag-weak-injection-signals

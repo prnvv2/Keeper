@@ -44,6 +44,7 @@ def build_facts(
     payload: str | None = None,
     trust: TrustLevel = TrustLevel.USER,
     tool_call: ToolCall | None = None,
+    risk: Any = None,
 ) -> dict[str, Any]:
     """Flatten one stage's state into the mapping the condition language reads.
 
@@ -71,6 +72,9 @@ def build_facts(
         "tags": dict(context.tags),
         "payload": payload,
         "turn_count": len(context.messages),
+        "threats": sorted({t for f in fired for t in f.threats}),
+        "risk_score": getattr(risk, "score", 0),
+        "risk_band": getattr(getattr(risk, "band", None), "value", "none"),
     }
 
 

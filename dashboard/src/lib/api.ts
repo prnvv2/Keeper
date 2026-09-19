@@ -30,6 +30,7 @@ export interface Finding {
   evidence: Record<string, unknown>;
   elapsed_ms: number;
   error: string | null;
+  threats?: string[];
 }
 
 export interface PolicyTrace {
@@ -74,6 +75,52 @@ export interface AuditEvent {
   tokens_out: number | null;
   error: string | null;
   tags: Record<string, unknown>;
+  threats?: string[];
+  risk_score?: number;
+  risk_band?: RiskBand;
+  risk_likelihood?: number;
+  risk_impact?: number;
+}
+
+export type RiskBand = "none" | "low" | "medium" | "high" | "critical";
+
+export interface RiskStats {
+  window_hours: number;
+  /** matrix[likelihood - 1][impact - 1] */
+  matrix: number[][];
+  by_band: Partial<Record<RiskBand, number>>;
+  threats: { threat: string; events: number; blocked: number }[];
+  top_events: RiskyEvent[];
+}
+
+export interface RiskyEvent {
+  event_id: string;
+  correlation_id: string;
+  timestamp_ms: number;
+  application: string;
+  stage: string;
+  action: Action;
+  principal_id: string | null;
+  risk_score: number;
+  risk_band: RiskBand;
+  risk_likelihood: number;
+  risk_impact: number;
+  threats: string[];
+}
+
+export interface ThreatRow {
+  id: string;
+  framework: string;
+  title: string;
+  summary: string;
+  base_impact: number;
+  atlas: string[];
+  detectors: string[];
+  controls: string[];
+  coverage: string;
+  status: "covered" | "partial" | "observed" | "disabled" | "out_of_scope";
+  note: string;
+  hits: number;
 }
 
 export interface Overview {
@@ -294,6 +341,12 @@ export const api = {
 
   policyStats: (hours = 24) =>
     request<{ rules: PolicyRuleStat[] }>(`/api/analytics/policy${query({ hours })}`),
+
+  riskStats: (hours = 24, application?: string) =>
+    request<RiskStats>(`/api/analytics/risk${query({ hours, application })}`),
+
+  threats: (hours = 168) =>
+    request<{ threats: ThreatRow[]; atlas: Record<string, string> }>(`/api/threats${query({ hours })}`),
 
   anomalies: (minutes = 15) =>
     request<{ findings: AnomalyFinding[] }>(`/api/analytics/anomalies${query({ minutes })}`),

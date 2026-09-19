@@ -143,6 +143,12 @@ class Metrics:
         self._counter("detector_errors_total", "Detector failures.", ("detector", "fail_mode", "application"))
         self._counter("policy_evaluations_total", "Policy evaluations.", ("policy_id", "action", "application"))
         self._counter("blocked_total", "Interactions blocked.", ("stage", "category", "application"))
+        # OWASP threat ids are a closed set of ~30 values, so they are safe as a label.
+        self._counter("threat_detections_total", "Findings mapped to an OWASP threat.",
+                      ("threat", "framework", "stage", "action", "application"))
+        self._counter("risk_decisions_total", "Decisions by residual risk band.", ("band", "stage", "application"))
+        self._histogram("risk_score", "Residual risk score (likelihood x impact, 1-25).", ("stage", "application"),
+                        (1, 2, 4, 6, 9, 12, 16, 20, 25))
         self._counter("access_denied_total", "Access control rejections.", ("reason", "application"))
         self._counter("telemetry_events_total", "Audit events emitted.", ("outcome", "application"))
         self._counter("telemetry_dropped_total", "Audit events dropped.", ("reason", "application"))

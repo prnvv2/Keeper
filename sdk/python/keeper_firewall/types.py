@@ -81,6 +81,7 @@ class Stage(str, enum.Enum):
     MEMORY_WRITE = "memory_write"
     MEMORY_READ = "memory_read"
     ACCESS = "access"
+    TOOL_DEFINITION = "tool_definition"  # MCP / function tool metadata, screened on registration
 
 
 class TrustLevel(str, enum.Enum):
@@ -235,6 +236,9 @@ class Finding:
     evidence: Mapping[str, Any] = field(default_factory=dict)
     elapsed_ms: float = 0.0
     error: str | None = None
+    #: OWASP threat ids (LLMxx / ASIxx / MCPxx), stamped by the pipeline from
+    #: :mod:`keeper_firewall.taxonomy`. Detectors do not need to set this.
+    threats: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -249,6 +253,7 @@ class Finding:
             "evidence": dict(self.evidence),
             "elapsed_ms": round(self.elapsed_ms, 3),
             "error": self.error,
+            "threats": list(self.threats),
         }
 
 
@@ -289,6 +294,17 @@ class Decision:
     original_payload: str | None = None  # pre-redaction, never shipped raw
     elapsed_ms: float = 0.0
     fail_mode_engaged: str | None = None  # set when a fail-open/closed path ran
+    #: Likelihood x impact assessment (:class:`keeper_firewall.risk.RiskAssessment`).
+    risk: Any = None
+
+    @property
+    def threats(self) -> tuple[str, ...]:
+        """OWASP threat ids implicated by this decision, deduplicated."""
+        out: dict[str, None] = {}
+        for f in self.findings:
+            if f.detected:
+                out.update(dict.fromkeys(f.threats))
+        return tuple(out)
 
     @property
     def blocked(self) -> bool:
@@ -411,6 +427,10 @@ class AuditEvent:
     tokens_out: int | None = None
     error: str | None = None
     tags: Mapping[str, Any] = field(default_factory=dict)
+    #: OWASP threat ids implicated by the decision (additive in schema v1.1).
+    threats: tuple[str, ...] = ()
+    #: Risk-matrix assessment as a plain mapping (see ``RiskAssessment.to_dict``).
+    risk: Mapping[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -422,6 +442,8 @@ class AuditEvent:
         d["principal_roles"] = list(self.principal_roles)
         d["redacted_fields"] = list(self.redacted_fields)
         d["tags"] = dict(self.tags)
+        d["threats"] = list(self.threats)
+        d["risk"] = dict(self.risk) if self.risk else None
         return d
 
 

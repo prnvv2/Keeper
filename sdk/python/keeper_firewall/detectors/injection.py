@@ -23,6 +23,8 @@ can hand off to :mod:`keeper_firewall.detectors.llm`, mirroring TokenWall's
 
 from __future__ import annotations
 
+import base64
+import binascii
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -98,6 +100,43 @@ TRUST_MULTIPLIER: dict[TrustLevel, float] = {
 }
 
 
+#: Candidate base64 segments worth decoding. Shorter than ``base64_blob`` on
+#: purpose: "aWdub3JlIGFsbCBwcmV2aW91cyBpbnN0cnVjdGlvbnM=" is 44 characters.
+_B64_CANDIDATE = re.compile(r"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{16,}={0,2}(?![A-Za-z0-9+/=])")
+_HEX_CANDIDATE = re.compile(r"(?<![0-9a-fA-F])(?:[0-9a-fA-F]{2}){12,}(?![0-9a-fA-F])")
+
+
+def decoded_segments(text: str, *, limit: int = 8) -> list[str]:
+    """Printable plaintexts hidden as base64 or hex inside ``text``.
+
+    Encoding is the cheapest way past a pattern library: the model decodes
+    "aWdub3Jl..." happily, a regex does not. Decoding costs microseconds for a
+    handful of candidates, and only printable-text results are kept, so random
+    identifiers and hashes fall away.
+    """
+    out: list[str] = []
+    for regex, decoder in ((_B64_CANDIDATE, _b64), (_HEX_CANDIDATE, bytes.fromhex)):
+        for m in regex.finditer(text):
+            if len(out) >= limit:
+                return out
+            try:
+                raw = decoder(m.group())
+            except (ValueError, binascii.Error):
+                continue
+            try:
+                plain = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
+            printable = sum(ch.isprintable() or ch.isspace() for ch in plain)
+            if len(plain) >= 8 and printable / len(plain) > 0.95 and re.search(r"[A-Za-z]{3,}\s+[A-Za-z]{2,}", plain):
+                out.append(plain)
+    return out
+
+
+def _b64(segment: str) -> bytes:
+    return base64.b64decode(segment + "=" * (-len(segment) % 4), validate=True)
+
+
 def normalise(text: str) -> str:
     """Undo the cheap obfuscations before matching.
 
@@ -164,6 +203,22 @@ class PromptInjectionDetector(Detector):
             # saying "ignore previous instructions" is still one attack.
             families[signal.family] = max(families.get(signal.family, 0.0), signal.weight)
 
+        # Decode-and-rescan: an instruction hidden in base64/hex counts in full,
+        # plus an obfuscation signal for having been hidden at all.
+        decoded = decoded_segments(raw)
+        for plain in decoded:
+            plain_n = normalise(plain)
+            hit_any = False
+            for signal in SIGNALS + self.extra:
+                if signal.id in self.disabled_signals or not signal.pattern.search(plain_n):
+                    continue
+                hit_any = True
+                matched.append({"id": f"encoded:{signal.id}", "family": signal.family,
+                                "weight": signal.weight, "note": f"inside encoded payload: {signal.note}"})
+                families[signal.family] = max(families.get(signal.family, 0.0), signal.weight)
+            if hit_any:
+                families["obfuscation"] = max(families.get("obfuscation", 0.0), 0.5)
+
         invisible_count = len(INVISIBLE.findall(raw))
         if invisible_count:
             families["obfuscation"] = max(
@@ -185,6 +240,7 @@ class PromptInjectionDetector(Detector):
             "trust": data.trust.value,
             "trust_multiplier": multiplier,
             "invisible_characters": invisible_count,
+            "encoded_segments": len(decoded),
             "boundary": data.stage.value,
             "escalate": bool(matched) and self.escalate_threshold <= score < self.threshold,
         }

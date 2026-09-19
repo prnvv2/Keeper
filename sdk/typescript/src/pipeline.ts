@@ -27,6 +27,8 @@ import {
 import { PolicyError } from "./errors";
 import type { EventBuilder, FanoutSink, Metrics } from "./observability";
 import { buildFacts, type PolicyProvider } from "./policy";
+import { RiskEngine, type RiskAssessment } from "./risk";
+import { THREATS, annotate } from "./taxonomy";
 import type { TelemetryShipper } from "./transport";
 import {
   combineDecision,
@@ -46,15 +48,16 @@ import {
 const STAGE_DEFAULTS: Partial<Record<Stage, readonly string[]>> = {
   input: DEFAULT_INPUT_DETECTORS,
   output: DEFAULT_OUTPUT_DETECTORS,
-  stream: ["secret_leakage", "banned_topics", "prompt_injection"],
+  stream: ["secret_leakage", "system_prompt_leakage", "unsafe_output", "banned_topics", "prompt_injection"],
   tool_call: DEFAULT_RUNTIME_DETECTORS,
   tool_result: DEFAULT_RUNTIME_DETECTORS,
   retrieval: ["prompt_injection", "authority_claim", "secrets", "token_flow"],
   memory_write: ["token_flow", "prompt_injection", "secrets", "pii"],
   memory_read: [],
+  tool_definition: ["tool_poisoning", "secrets"],
 };
 
-const PROMPT_STAGES = new Set<Stage>(["input", "retrieval", "tool_call", "tool_result", "memory_write"]);
+const PROMPT_STAGES = new Set<Stage>(["input", "retrieval", "tool_call", "tool_result", "memory_write", "tool_definition"]);
 const RESPONSE_STAGES = new Set<Stage>(["output", "stream"]);
 
 export interface EvaluateOptions {
@@ -137,12 +140,21 @@ export class Pipeline {
     });
 
     const { findings, failMode: detectorFailMode } = this.runDetectors(names, data, budgetMs);
-    const { traces, failMode: policyFailMode } = this.evaluatePolicy(stage, context, findings, payload, trust, options.toolCall);
+    // Name every finding in OWASP terms, then place the stage on the risk
+    // matrix before policy runs, so rules can match on threat and band.
+    annotate(findings, stage);
+    const policy = this.policy.policy;
+    const riskEngine = new RiskEngine(policy.risk);
+    const risk = riskEngine.assess(findings, stage, { toolCall: options.toolCall, application: context.application });
+    const { traces, failMode: policyFailMode } = this.evaluatePolicy(stage, context, findings, payload, trust, options.toolCall, risk);
     const failMode = detectorFailMode ?? policyFailMode;
+    const riskTrace = riskEngine.trace(risk, policy.id, policy.version, Boolean(this.policy.engine.dryRun));
+    if (riskTrace) traces.push(riskTrace);
 
     const decision = combineDecision(stage, context.correlationId, findings, traces, payload);
     decision.originalPayload = payload;
     decision.failModeEngaged = failMode;
+    decision.risk = risk;
 
     if (failMode === FAIL_CLOSED && decision.action === "allow") {
       // Fail-closed engaged but nothing fired: the reason we are here is that
@@ -288,9 +300,10 @@ export class Pipeline {
     payload: string,
     trust: TrustLevel,
     toolCall?: ToolCall,
+    risk?: RiskAssessment,
   ): { traces: PolicyTrace[]; failMode: string | null } {
     const engine = this.policy.engine;
-    const facts = buildFacts(stage, context, findings, { payload, trust, toolCall });
+    const facts = buildFacts(stage, context, findings, { payload, trust, toolCall, risk });
     const start = performance.now();
     try {
       const traces = engine.evaluate(facts);
@@ -334,6 +347,20 @@ export class Pipeline {
   private recordMetrics(stage: Stage, decision: Decision): void {
     this.metrics.observe("pipeline_latency_ms", decision.elapsedMs, { stage });
     this.metrics.inc("requests_total", 1, { stage, action: decision.action });
+    for (const finding of decision.findings) {
+      for (const threat of finding.threats ?? []) {
+        this.metrics.inc("threat_detections_total", 1, {
+          threat,
+          framework: THREATS[threat]?.framework ?? "unknown",
+          stage,
+          action: decision.action,
+        });
+      }
+    }
+    if (decision.risk?.score) {
+      this.metrics.observe("risk_score", decision.risk.score, { stage });
+      this.metrics.inc("risk_decisions_total", 1, { band: decision.risk.band, stage });
+    }
     if (decision.action === "block") {
       const reason = decision.findings.find((f) => f.detected);
       this.metrics.inc("blocked_total", 1, { stage, category: reason?.category ?? "policy" });

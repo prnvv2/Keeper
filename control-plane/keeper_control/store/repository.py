@@ -53,6 +53,9 @@ class EventQuery:
     category: str | None = None
     model: str | None = None
     search: str | None = None
+    threat: str | None = None
+    min_risk: int | None = None
+    risk_band: str | None = None
     limit: int = 100
     offset: int = 0
 
@@ -156,6 +159,12 @@ class Repository:
         findings = event.get("findings") or []
         fired = [f["detector"] for f in findings if f.get("detected")]
         categories = sorted({f.get("category", "unspecified") for f in findings if f.get("detected")})
+        # Events from SDKs older than schema v1.1 carry no threats/risk: derive
+        # the threat list from findings where possible, leave risk empty.
+        threats = list(event.get("threats") or dict.fromkeys(
+            t for f in findings if f.get("detected") for t in (f.get("threats") or [])
+        ))
+        risk = event.get("risk") or {}
         # One lowercased haystack per event so free-text search is a single
         # LIKE rather than a scan across eight columns.
         haystack = " ".join(
@@ -168,6 +177,7 @@ class Repository:
                 event.get("model"),
                 " ".join(f.get("summary", "") for f in findings),
                 " ".join(fired),
+                " ".join(threats),
             )
             if part
         ).lower()[:8000]
@@ -206,6 +216,11 @@ class Repository:
             "error": event.get("error"),
             "tags": event.get("tags") or {},
             "search_text": haystack,
+            "threats": threats,
+            "risk_score": int(risk.get("score") or 0),
+            "risk_band": str(risk.get("band") or "none"),
+            "risk_likelihood": int(risk.get("likelihood") or 0),
+            "risk_impact": int(risk.get("impact") or 0),
         }
 
     # -- search ------------------------------------------------------------
@@ -243,6 +258,12 @@ class Repository:
             clauses.append(func.lower(func.cast(c.categories, __import__("sqlalchemy").Text)).like(f'%"{query.category.lower()}"%'))
         if query.search:
             clauses.append(c.search_text.like(f"%{query.search.lower()}%"))
+        if query.threat:
+            clauses.append(func.upper(func.cast(c.threats, __import__("sqlalchemy").Text)).like(f'%"{query.threat.upper()}"%'))
+        if query.min_risk:
+            clauses.append(c.risk_score >= query.min_risk)
+        if query.risk_band:
+            clauses.append(c.risk_band == query.risk_band)
         return clauses
 
     def search_events(self, query: EventQuery) -> tuple[list[dict[str, Any]], int]:
@@ -381,6 +402,49 @@ class Repository:
                 }
             )
         return sorted(out, key=lambda e: -e["hits"])
+
+    def risk_stats(self, since_ms: int, *, application: str | None = None) -> dict[str, Any]:
+        """The risk picture: a 5x5 likelihood x impact heat map, band counts,
+        per-OWASP-threat hit counts, and the riskiest recent events."""
+        c = audit_events.c
+        clauses = [c.timestamp_ms >= since_ms]
+        if application:
+            clauses.append(c.application == application)
+        where = and_(*clauses)
+        grid = [[0] * 5 for _ in range(5)]
+        with self.engine.connect() as conn:
+            cells = conn.execute(
+                select(c.risk_likelihood, c.risk_impact, func.count().label("n"))
+                .where(and_(where, c.risk_score > 0))
+                .group_by(c.risk_likelihood, c.risk_impact)
+            ).all()
+            bands = conn.execute(select(c.risk_band, func.count().label("n")).where(where).group_by(c.risk_band)).all()
+            threat_rows = conn.execute(
+                select(c.threats, c.action).where(and_(where, c.risk_score > 0))
+            ).all()
+            top = conn.execute(
+                select(c.event_id, c.correlation_id, c.timestamp_ms, c.application, c.stage, c.action,
+                       c.risk_score, c.risk_band, c.risk_likelihood, c.risk_impact, c.threats, c.principal_id)
+                .where(and_(where, c.risk_score > 0))
+                .order_by(desc(c.risk_score), desc(c.timestamp_ms))
+                .limit(15)
+            ).all()
+        for row in cells:
+            if row.risk_likelihood and row.risk_impact and 1 <= row.risk_likelihood <= 5 and 1 <= row.risk_impact <= 5:
+                grid[row.risk_likelihood - 1][row.risk_impact - 1] += row.n
+        threats: dict[str, dict[str, Any]] = {}
+        for ids, action in threat_rows:
+            for tid in ids or []:
+                entry = threats.setdefault(tid, {"threat": tid, "events": 0, "blocked": 0})
+                entry["events"] += 1
+                if action in ("block", "challenge"):
+                    entry["blocked"] += 1
+        return {
+            "matrix": grid,
+            "by_band": {row.risk_band or "none": row.n for row in bands},
+            "threats": sorted(threats.values(), key=lambda e: -e["events"]),
+            "top_events": [dict(r._mapping) for r in top],
+        }
 
     def policy_stats(self, since_ms: int) -> list[dict[str, Any]]:
         """Which rules actually fire — policy-effectiveness analysis."""

@@ -133,6 +133,12 @@ export function defaultDetectors(): Record<string, DetectorConfig> {
     secret_leakage: detector({ failMode: FAIL_CLOSED, timeoutMs: 50 }),
     groundedness: detector({ enabled: false, timeoutMs: 200 }),
     token_flow: detector({ failMode: FAIL_CLOSED, timeoutMs: 100 }),
+    // OWASP coverage additions: LLM07, LLM05, ASI05/MCP05, MCP03, LLM10.
+    system_prompt_leakage: detector({ timeoutMs: 50, threshold: 0.6 }),
+    unsafe_output: detector({ timeoutMs: 50, threshold: 0.6 }),
+    code_execution: detector({ failMode: FAIL_CLOSED, timeoutMs: 50, threshold: 0.6 }),
+    tool_poisoning: detector({ failMode: FAIL_CLOSED, timeoutMs: 80, threshold: 0.6 }),
+    resource_abuse: detector({ timeoutMs: 30, threshold: 0.6 }),
   };
 }
 

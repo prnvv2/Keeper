@@ -161,6 +161,12 @@ export class ToolGuard {
   async checkCall(call: ToolCall, context: RequestContext, trust: TrustLevel = "user", taintedBy: string[] = []): Promise<Decision> {
     const spec = this.tools.get(call.name);
     if (!call.risk && spec) call.risk = spec.risk;
+    if (!call.risk) {
+      // Unregistered tool: borrow token_flow's sink table so the risk matrix
+      // still sees `payment.transfer` as a critical sink.
+      const flow = this.pipeline.detector("token_flow") as { resolveRisk?(sink: string): RiskTier } | undefined;
+      call.risk = flow?.resolveRisk?.(call.name);
+    }
 
     const [allowed, reason] = this.inScope(call.name, context);
     if (!allowed) {

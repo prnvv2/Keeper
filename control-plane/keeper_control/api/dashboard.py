@@ -12,6 +12,7 @@ The endpoints map one-to-one onto the questions a security team asks:
   ``/analytics/policy``
 * "What is running out there?" -> ``/fleet``
 * "What should I change?" -> ``/policies`` + ``/policies/dry-run``
+* "How exposed are we, and to what?" -> ``/analytics/risk``, ``/threats``
 """
 
 from __future__ import annotations
@@ -84,6 +85,9 @@ async def search_events(
     detector: str | None = None,
     category: str | None = None,
     model: str | None = None,
+    threat: str | None = Query(None, description="OWASP threat id, e.g. LLM01, ASI06, MCP03"),
+    min_risk: int | None = Query(None, ge=1, le=25),
+    risk_band: str | None = None,
     q: str | None = Query(None, description="free-text search over prompt, response, and finding summaries"),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -108,6 +112,9 @@ async def search_events(
             category=category,
             model=model,
             search=q,
+            threat=threat,
+            min_risk=min_risk,
+            risk_band=risk_band,
             limit=limit,
             offset=offset,
         )
@@ -171,6 +178,34 @@ async def detector_analytics(
     threshold change actually do anything?".
     """
     return {"detectors": state.repo.detector_stats(_window_ms(hours)), "window_hours": hours}
+
+
+@router.get("/analytics/risk")
+async def risk_analytics(
+    hours: float = Query(24, ge=0.01, le=24 * 90),
+    application: str | None = None,
+    state: AppState = Depends(get_state),
+) -> dict[str, Any]:
+    """Likelihood x impact heat map, band distribution and riskiest events."""
+    data = state.repo.risk_stats(_window_ms(hours), application=application)
+    data["window_hours"] = hours
+    return data
+
+
+@router.get("/threats")
+async def threat_catalog(
+    hours: float = Query(24 * 7, ge=0.01, le=24 * 90), state: AppState = Depends(get_state)
+) -> dict[str, Any]:
+    """The OWASP LLM / Agentic / MCP catalogue, with fleet-wide hit counts.
+
+    Coverage comes from the SDK's own taxonomy, so the dashboard and
+    ``keeper coverage`` can never disagree about what a threat id means.
+    """
+    from keeper_firewall.taxonomy import ATLAS, coverage_report
+
+    hits = {t["threat"]: t["events"] for t in state.repo.risk_stats(_window_ms(hours))["threats"]}
+    rows = [row.to_dict() for row in coverage_report(None, hits=hits)]
+    return {"threats": rows, "atlas": dict(ATLAS), "window_hours": hours}
 
 
 @router.get("/analytics/policy")

@@ -614,3 +614,46 @@ pre.json {
     padding: 16px;
   }
 }
+
+/* --- risk matrix -------------------------------------------------------- */
+
+.heatmap {
+  display: grid;
+  grid-template-columns: auto repeat(5, minmax(44px, 1fr));
+  gap: 4px;
+  align-items: stretch;
+}
+.heatmap .axis {
+  font-size: 11px;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+}
+.heatmap .cell {
+  border-radius: var(--radius-sm);
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.heatmap .cell .score {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.heatmap .cell.empty-cell {
+  opacity: 0.55;
+}
+.coverage-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}

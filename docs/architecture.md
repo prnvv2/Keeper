@@ -103,7 +103,13 @@ proxy handler. A sidecar mode is a new transport in front of the same
 | App can drop telemetry | Ingest gaps are observable. `keeper_cp_instances{status="stale"}` is an alertable metric. |
 
 For a deployment where the application itself is untrusted, the answer is a
-proxy, and the architecture is ready for one. It is not v1.
+proxy — and it ships: **gateway mode** (`keeper gateway`, [`gateway.md`](gateway.md))
+is an OpenAI/Anthropic-compatible proxy that runs the *same* `Pipeline`, policy
+and risk matrix in front of the model. Hold the provider key in the gateway and
+the application cannot reach the model any other way. The SDK remains the
+primary path because it sees tool calls, retrieval and memory; the gateway sees
+what crosses the wire — messages, tool definitions, tool results and the tool
+calls the model proposes.
 
 ---
 
@@ -116,29 +122,46 @@ exactly one audit event.
   ① Access control          authenticate → authorize model → rate limit
         │                   (fails fast; emits an ACCESS event on refusal)
         ▼
-  ② Input filtering         secrets → pii → banned_topics → prompt_injection
+  ② Input filtering         resource_abuse → secrets → pii → banned_topics
+        │                   → prompt_injection (incl. base64/hex decode-and-rescan)
         │                   → authority_claim → trajectory
-        │                   combine by escalation → evaluate policy → act
+        │                   ── then, for every stage ──────────────────────────
+        │                   a. name each finding in OWASP terms  (taxonomy.py)
+        │                   b. place the stage on the 5x5 risk matrix (risk.py)
+        │                   c. evaluate policy (rules can match threat / band)
+        │                   d. add the matrix's verdict as a policy trace
+        │                   e. combine everything by escalation → act
         │                   BLOCK: return here, the model is never called
         │                   REDACT: rewrite the payload, continue
         ▼
   ③ Model call              provider adapter; latency recorded separately from
         │                   firewall overhead so the two are never confused
         ▼
-  ④ Output filtering        secret_leakage → pii → banned_topics → groundedness
+  ④ Output filtering        secret_leakage → system_prompt_leakage → unsafe_output
+        │                   → pii → banned_topics → groundedness
         │                   (or, when streaming, incremental checkpoints with a
         │                    circuit breaker — see §6)
         ▼
      GuardedResponse        text, correlation id, both decisions, token counts
 ```
 
+Every decision carries `threats` (e.g. `["LLM01", "ASI01"]`) and a `risk`
+assessment (likelihood, impact, score 1–25, band, primary threat, per-threat
+cells). Both are in the audit event, the Prometheus series, the SIEM export and
+the dashboard. See [`owasp-coverage.md`](owasp-coverage.md) and
+[`risk-matrix.md`](risk-matrix.md).
+
 Around and between those steps, when the application is an agent:
 
 - **Retrieval** — every retrieved document is screened at ingestion, before it
   enters the context window. Poisoned passages are dropped individually; the
   rest of the answer proceeds.
+- **Tool definition** — MCP / function-calling tool metadata is screened for
+  embedded directives and pinned by fingerprint; a later change is a rug pull
+  (OWASP MCP03 / ASI04).
 - **Tool call** — mediated before execution, with the authority of the content
-  that *caused* the call as an input.
+  that *caused* the call as an input. `code_execution` screens the arguments
+  themselves for execution payloads (ASI05 / MCP05).
 - **Tool result** — screened as untrusted data before it re-enters context.
 - **Memory write / read** — provenance recorded at write; authority checked
   against action risk at execution.

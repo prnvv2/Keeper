@@ -252,6 +252,12 @@ def default_detectors() -> dict[str, DetectorConfig]:
         "groundedness": DetectorConfig(enabled=False, fail_mode=FAIL_OPEN, timeout_ms=200),
         "token_flow": DetectorConfig(fail_mode=FAIL_CLOSED, timeout_ms=100),
         "llm_classifier": DetectorConfig(enabled=False, fail_mode=FAIL_OPEN, timeout_ms=1500),
+        # OWASP coverage additions: LLM07, LLM05, ASI05/MCP05, MCP03, LLM10.
+        "system_prompt_leakage": DetectorConfig(fail_mode=FAIL_OPEN, timeout_ms=50, threshold=0.6),
+        "unsafe_output": DetectorConfig(fail_mode=FAIL_OPEN, timeout_ms=50, threshold=0.6),
+        "code_execution": DetectorConfig(fail_mode=FAIL_CLOSED, timeout_ms=50, threshold=0.6),
+        "tool_poisoning": DetectorConfig(fail_mode=FAIL_CLOSED, timeout_ms=80, threshold=0.6),
+        "resource_abuse": DetectorConfig(fail_mode=FAIL_OPEN, timeout_ms=30, threshold=0.6),
     }
 
 

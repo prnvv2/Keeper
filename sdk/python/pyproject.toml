@@ -5,12 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "keeper-firewall"
 version = "0.1.0"
-description = "Open-source AI firewall SDK: input/output filtering, runtime protection, and first-class observability for LLM applications."
+description = "Open-source AI firewall framework: OWASP LLM/Agentic/MCP threat prevention, risk-matrix policy enforcement, and first-class observability for AI applications."
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 authors = [{ name = "The Keeper contributors" }]
-keywords = ["llm", "security", "firewall", "prompt-injection", "observability", "ai-security"]
+keywords = ["llm", "security", "firewall", "prompt-injection", "observability", "ai-security", "owasp", "mcp", "agents", "guardrails"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -33,6 +33,8 @@ dependencies = []
 yaml = ["PyYAML>=6.0"]
 metrics = ["prometheus-client>=0.19"]
 otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20", "opentelemetry-exporter-otlp-proto-http>=1.20"]
+# The OpenAI/Anthropic-compatible proxy: `keeper gateway`.
+gateway = ["fastapi>=0.110", "uvicorn>=0.29", "httpx>=0.27"]
 # Everything an operator is likely to want in production.
 all = ["PyYAML>=6.0", "prometheus-client>=0.19", "opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
 dev = [
@@ -42,6 +44,9 @@ dev = [
   "ruff>=0.5",
   "PyYAML>=6.0",
   "prometheus-client>=0.19",
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "httpx>=0.27",
 ]
 
 [project.urls]

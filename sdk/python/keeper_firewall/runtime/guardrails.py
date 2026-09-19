@@ -157,6 +157,12 @@ class ToolGuard:
         spec = self.tools.get(call.name)
         if call.risk is None and spec is not None:
             call.risk = spec.risk
+        if call.risk is None:
+            # Unregistered tool: borrow token_flow's sink table so the risk
+            # matrix still sees `payment.transfer` as a critical sink.
+            flow = self.pipeline.detector("token_flow")
+            if flow is not None and hasattr(flow, "resolve_risk"):
+                call.risk = flow.resolve_risk(call.name)
 
         in_scope, reason = self.in_scope(call.name, context)
         if not in_scope:

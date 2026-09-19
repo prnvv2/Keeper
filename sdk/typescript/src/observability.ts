@@ -7,6 +7,7 @@
  */
 
 import type { RedactionConfig, MetricsConfig } from "./config";
+import { serialiseRisk } from "./risk";
 import {
   SCHEMA_VERSION,
   SDK_VERSION,
@@ -16,6 +17,7 @@ import {
   type RequestContext,
   type Span,
   decisionSeverity,
+  decisionThreats,
   newId,
   nowMs,
   serialiseFinding,
@@ -289,6 +291,8 @@ export class EventBuilder {
       tokens_out: options.tokensOut ?? null,
       error: options.error ?? null,
       tags,
+      threats: decisionThreats(decision),
+      risk: decision.risk ? serialiseRisk(decision.risk) : null,
     };
   }
 }
@@ -329,6 +333,9 @@ export class Metrics {
     this.counter("detector_errors_total", "Detector failures.", ["detector", "fail_mode", "application"]);
     this.counter("policy_evaluations_total", "Policy evaluations.", ["policy_id", "action", "application"]);
     this.counter("blocked_total", "Interactions blocked.", ["stage", "category", "application"]);
+    this.counter("threat_detections_total", "Findings mapped to an OWASP threat.", ["threat", "framework", "stage", "action", "application"]);
+    this.counter("risk_decisions_total", "Decisions by residual risk band.", ["band", "stage", "application"]);
+    this.histogram("risk_score", "Residual risk score (likelihood x impact, 1-25).", ["stage", "application"], [1, 2, 4, 6, 9, 12, 16, 20, 25]);
     this.counter("access_denied_total", "Access control rejections.", ["reason", "application"]);
     this.counter("telemetry_events_total", "Audit events emitted.", ["outcome", "application"]);
     this.counter("telemetry_dropped_total", "Audit events dropped.", ["reason", "application"]);
