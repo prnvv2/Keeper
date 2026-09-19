@@ -79,7 +79,7 @@ def main() -> None:
             source="ticket-8891-attachment.txt",
             trust=TrustLevel.EXTERNAL,
         )
-        safe, rejected = keeper.check_documents([attachment], ctx)
+        _safe, rejected = keeper.check_documents([attachment], ctx)
         print(f"\nattachment       -> {len(rejected)} rejected at the retrieval boundary")
         for _doc, decision in rejected:
             print(f"                    {decision.reasons[0].summary}")
@@ -99,7 +99,7 @@ def main() -> None:
                 trust=TrustLevel.RETRIEVED,   # authority of what caused the call
             )
         except BlockedError as exc:
-            print(f"\nemail.send       -> blocked")
+            print("\nemail.send       -> blocked")
             print(f"                    {exc.decision.reasons[0].summary}")
 
         # --- and the run is now halted ------------------------------------

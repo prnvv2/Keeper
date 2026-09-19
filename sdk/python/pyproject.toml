@@ -50,10 +50,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/keeper-firewall/keeper"
-Documentation = "https://github.com/keeper-firewall/keeper/tree/main/docs"
-Source = "https://github.com/keeper-firewall/keeper"
-Issues = "https://github.com/keeper-firewall/keeper/issues"
+Homepage = "https://github.com/prnvv2/Keeper"
+Documentation = "https://github.com/prnvv2/Keeper/tree/main/docs"
+Source = "https://github.com/prnvv2/Keeper"
+Issues = "https://github.com/prnvv2/Keeper/issues"
 
 [project.scripts]
 keeper = "keeper_firewall.cli:main"

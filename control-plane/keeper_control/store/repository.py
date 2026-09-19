@@ -494,8 +494,26 @@ class Repository:
 
     # -- fleet -------------------------------------------------------------
 
-    def upsert_instance(self, payload: Mapping[str, Any]) -> None:
+    def upsert_instance(self, payload: Mapping[str, Any], *, partial: bool = False) -> None:
+        """Insert or update a fleet instance.
+
+        ``partial`` is for heartbeats: only the fields the payload actually
+        carries are updated. A full upsert would reset everything a heartbeat
+        does not repeat (environment, SDK version, policy, detectors, language)
+        back to defaults, erasing what registration recorded.
+        """
         now = now_ms()
+        if partial:
+            fields = {k: v for k, v in payload.items() if k != "instance_id" and v not in (None, "", [], {})}
+            with self.engine.begin() as conn:
+                updated = conn.execute(
+                    update(instances)
+                    .where(instances.c.instance_id == payload["instance_id"])
+                    .values(**fields, last_seen_ms=now)
+                )
+            if updated.rowcount:
+                return
+            # Heartbeat before registration: fall through and create the row.
         values = {
             "instance_id": payload["instance_id"],
             "application": payload.get("application", "unknown"),

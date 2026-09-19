@@ -1,6 +1,6 @@
 # keeper-firewall (TypeScript)
 
-The TypeScript/Node SDK for [Keeper](https://github.com/keeper-firewall/keeper),
+The TypeScript/Node SDK for [Keeper](https://github.com/prnvv2/Keeper),
 an open-source AI firewall. Wrap your existing LLM, agent, or RAG calls to get
 input filtering, output filtering, runtime protection, and a structured audit
 trail of every AI interaction — without routing traffic through a proxy.

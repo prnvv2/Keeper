@@ -8,8 +8,8 @@ observability works end to end, and how to harden all of it.
 ## 1. Local, in one command
 
 ```bash
-git clone https://github.com/keeper-firewall/keeper
-cd keeper/deploy/docker
+git clone https://github.com/prnvv2/Keeper
+cd Keeper/deploy/docker
 cp .env.example .env      # edit the two keys
 docker compose up -d
 ```

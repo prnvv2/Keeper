@@ -453,3 +453,28 @@ def test_malformed_gzip_is_rejected_cleanly(client):
     )
     assert response.status_code == 400
     assert "decompress" in response.json()["detail"]
+
+
+def test_heartbeat_does_not_erase_registration(client):
+    registration = {
+        "instance_id": "inst_hb", "application": "support-bot", "environment": "production",
+        "sdk_version": "0.2.0", "language": "typescript", "policy_id": "keeper.default",
+        "policy_version": "2.0.0", "detectors": ["secrets", "pii", "prompt_injection"], "monitor_only": True,
+    }
+    assert client.post("/v1/fleet/register", json=registration, headers=ingest_headers()).status_code == 202
+    beat = {"instance_id": "inst_hb", "health": {"status": "ok"}}
+    assert client.post("/v1/fleet/heartbeat", json=beat, headers=ingest_headers()).status_code == 202
+    fleet = client.get("/api/fleet", headers=admin_headers()).json()["instances"]
+    row = next(i for i in fleet if i["instance_id"] == "inst_hb")
+    for key in ("environment", "sdk_version", "language", "policy_id", "policy_version", "detectors", "monitor_only"):
+        assert row[key] == registration[key], key
+    assert row["health"] == {"status": "ok"}
+
+
+def test_heartbeat_updates_fields_it_carries(client):
+    client.post("/v1/fleet/register", json={"instance_id": "inst_hb2", "application": "a", "sdk_version": "0.1.0"},
+                headers=ingest_headers())
+    client.post("/v1/fleet/heartbeat", json={"instance_id": "inst_hb2", "health": {"sdk_version": "0.2.0"}},
+                headers=ingest_headers())
+    fleet = client.get("/api/fleet", headers=admin_headers()).json()["instances"]
+    assert next(i for i in fleet if i["instance_id"] == "inst_hb2")["sdk_version"] == "0.2.0"

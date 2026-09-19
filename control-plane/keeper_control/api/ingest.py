@@ -119,19 +119,22 @@ async def heartbeat(
     _auth: str = Depends(require_ingest_auth),
 ) -> dict[str, str]:
     """Liveness plus the SDK's own health snapshot."""
-    state.repo.upsert_instance(
-        {
-            "instance_id": payload.instance_id,
-            "application": payload.application or payload.health.get("application", "unknown"),
-            "environment": payload.health.get("environment", "unknown"),
-            "sdk_version": payload.health.get("sdk_version"),
-            "policy_id": (payload.health.get("policy") or {}).get("policy_id"),
-            "policy_version": (payload.health.get("policy") or {}).get("policy_version"),
-            "detectors": payload.health.get("detectors") or [],
-            "monitor_only": bool(payload.health.get("monitor_only")),
-            "health": payload.health,
-        }
-    )
+    health = payload.health
+    policy = health.get("policy") if isinstance(health.get("policy"), dict) else {}
+    snapshot = {
+        "instance_id": payload.instance_id,
+        "application": payload.application or health.get("application"),
+        "environment": health.get("environment"),
+        "sdk_version": health.get("sdk_version"),
+        "policy_id": policy.get("policy_id"),
+        "policy_version": policy.get("policy_version"),
+        "detectors": health.get("detectors"),
+        "health": health,
+    }
+    if "monitor_only" in health:
+        snapshot["monitor_only"] = bool(health["monitor_only"])
+    # Partial: a heartbeat must not erase what registration recorded.
+    state.repo.upsert_instance(snapshot, partial=True)
     return {"status": "ok"}
 
 

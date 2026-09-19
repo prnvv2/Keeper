@@ -1,0 +1,7 @@
+# Reviewed gitleaks findings. Each line is one exact finding fingerprint, so a
+# new secret in the same file still fails the scan.
+#
+# docs/sdk-integration.md:197 in the initial commit used the local-development
+# placeholder "dev-admin-key" from deploy/docker/.env.example in a curl example.
+# Not a credential; the doc now uses $ADMIN_KEY.
+5d44c27fe1cc2d6d3ba5687a173309091939f235:docs/sdk-integration.md:curl-auth-header:197

@@ -10,8 +10,8 @@ than the internal one produces plugins that are worse than the internals.
 ## Getting set up
 
 ```bash
-git clone https://github.com/keeper-firewall/keeper
-cd keeper
+git clone https://github.com/prnvv2/Keeper
+cd Keeper
 make dev        # installs both SDKs, the control plane, and the dashboard
 make test       # runs all four test suites
 ```

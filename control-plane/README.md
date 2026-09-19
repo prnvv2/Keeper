@@ -1,6 +1,6 @@
 # keeper-control-plane
 
-The control plane for [Keeper](https://github.com/keeper-firewall/keeper): the
+The control plane for [Keeper](https://github.com/prnvv2/Keeper): the
 aggregation, investigation, policy-distribution, alerting and SIEM-export half
 of the AI firewall. Every SDK instance reports here; security teams work here.
 

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-labelledby="t d">
+  <title id="t">Keeper — the AI firewall</title>
+  <desc id="d">Every prompt passes through Keeper's policy engine before it reaches the model.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0f19"/>
+      <stop offset="1" stop-color="#141b2d"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7aa2ff"/>
+      <stop offset="1" stop-color="#b58cff"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#7aa2ff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#7aa2ff" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity="0.035"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="320" rx="18" fill="url(#bg)"/>
+  <rect width="1280" height="320" rx="18" fill="url(#grid)"/>
+  <circle cx="1030" cy="160" r="170" fill="url(#glow)"/>
+
+  <!-- shield mark -->
+  <g transform="translate(88 92)">
+    <path d="M68 6 20 26v37c0 30 20 52 48 60 28-8 48-30 48-60V26L68 6Z" fill="#131a2c" stroke="url(#accent)" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M47 64l15 15 27-30" fill="none" stroke="url(#accent)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="240" y="150" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="78" font-weight="700" fill="#eef2ff">Keeper</text>
+  <text x="243" y="196" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="27" fill="#aab4c8">The open-source AI firewall for Python &amp; Node</text>
+  <text x="243" y="236" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="17" fill="#7aa2ff">OWASP LLM · Agentic · MCP  ·  risk matrix  ·  observability</text>
+
+  <!-- request flow -->
+  <g font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="15">
+    <rect x="850" y="72" width="120" height="40" rx="9" fill="#1b2336" stroke="#2c3650"/>
+    <text x="910" y="97" text-anchor="middle" fill="#cfd6e6">prompt</text>
+
+    <rect x="850" y="140" width="360" height="44" rx="10" fill="#1d2440" stroke="url(#accent)" stroke-width="2"/>
+    <text x="1030" y="167" text-anchor="middle" fill="#eef2ff">detect → name → score → decide</text>
+
+    <rect x="1090" y="72" width="120" height="40" rx="9" fill="#1b2336" stroke="#2c3650"/>
+    <text x="1150" y="97" text-anchor="middle" fill="#cfd6e6">model</text>
+
+    <path d="M910 112v28" stroke="#7aa2ff" stroke-width="2"/>
+    <path d="M1150 140v-28" stroke="#7aa2ff" stroke-width="2"/>
+    <polygon points="1144,118 1150,108 1156,118" fill="#7aa2ff"/>
+    <polygon points="904,134 910,144 916,134" fill="#7aa2ff"/>
+
+    <g transform="translate(850 210)">
+      <rect width="84" height="30" rx="15" fill="#123524"/><text x="42" y="20" text-anchor="middle" fill="#46c28a">allow</text>
+      <rect x="92" width="84" height="30" rx="15" fill="#2b1d4d"/><text x="134" y="20" text-anchor="middle" fill="#a78bfa">redact</text>
+      <rect x="184" width="84" height="30" rx="15" fill="#3a2a0c"/><text x="226" y="20" text-anchor="middle" fill="#f0b429">flag</text>
+      <rect x="276" width="84" height="30" rx="15" fill="#3d1518"/><text x="318" y="20" text-anchor="middle" fill="#f26b6b">block</text>
+    </g>
+  </g>
+</svg>

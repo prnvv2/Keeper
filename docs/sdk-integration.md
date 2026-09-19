@@ -96,14 +96,14 @@ and Prometheus metrics. **Everything from here is optional.**
 ## Minute 3–5: start the control plane
 
 ```bash
-git clone https://github.com/keeper-firewall/keeper
-cd keeper/deploy/docker
+git clone https://github.com/prnvv2/Keeper
+cd Keeper/deploy/docker
 cp .env.example .env      # generates nothing secret; edit the two keys
 docker compose up -d
 ```
 
 That brings up the control plane on `http://localhost:8080` and the dashboard on
-`http://localhost:5173`. Open `/docs` for the live API reference.
+`http://localhost:8081`. Open `/docs` for the live API reference.
 
 If you would rather not use Docker:
 
@@ -133,8 +133,7 @@ or explicitly:
 ```python
 keeper = Keeper(
     application="support-bot",
-    endpoint="http://localhost:8080",
-    api_key="dev-ingest-key",
+    telemetry={"endpoint": "http://localhost:8080", "api_key": "dev-ingest-key"},
 )
 ```
 
@@ -158,7 +157,8 @@ keeper.flush()      # ship immediately rather than waiting for the 2s interval
 
 ## Minute 7–10: see it
 
-Open **http://localhost:5173**, paste the admin key (`dev-admin-key`), and you
+Open **http://localhost:8081** (or `http://localhost:5173` if you started the
+dashboard with `npm run dev`), paste the admin key (`dev-admin-key`), and you
 should immediately see:
 
 | Page | What should be there |
@@ -194,7 +194,8 @@ correlation_id = reply.correlation_id
 ```
 
 ```bash
-curl -s -H "Authorization: Bearer dev-admin-key" \
+ADMIN_KEY=dev-admin-key   # the local key exported as KEEPER_CP_ADMIN_API_KEYS above
+curl -s -H "Authorization: Bearer $ADMIN_KEY" \
   "http://localhost:8080/api/events/correlation/$correlation_id" | jq '.summary'
 ```
 
