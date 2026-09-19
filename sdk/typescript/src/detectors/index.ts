@@ -5,21 +5,21 @@
  * block short-circuits before the conversation-level gates run at all.
  */
 
-import "./secrets";
-import "./pii";
-import "./injection";
-import "./cognitive";
-import "./tokenflow";
-import "./output";
-import "./owasp";
+import "./secrets.js";
+import "./pii.js";
+import "./injection.js";
+import "./cognitive.js";
+import "./tokenflow.js";
+import "./output.js";
+import "./owasp.js";
 
-export { Detector, build, detectorInput, register, registered, timed, type DetectorInput } from "./base";
-export { AuthorityClaimDetector, TrajectoryDetector } from "./cognitive";
-export { INVISIBLE, PromptInjectionDetector, SIGNALS, normalise } from "./injection";
-export { BannedTopicsDetector, GroundednessDetector, SecretLeakageDetector } from "./output";
-export { PIIDetector, PII_PATTERNS, luhnValid } from "./pii";
-export { SecretDetector, VENDOR_PATTERNS, shannonEntropy } from "./secrets";
-export { DEFAULT_SINK_RISK, TokenFlowDetector, type FlowRecord } from "./tokenflow";
+export { Detector, build, detectorInput, register, registered, timed, type DetectorInput } from "./base.js";
+export { AuthorityClaimDetector, TrajectoryDetector } from "./cognitive.js";
+export { INVISIBLE, PromptInjectionDetector, SIGNALS, normalise } from "./injection.js";
+export { BannedTopicsDetector, GroundednessDetector, SecretLeakageDetector } from "./output.js";
+export { PIIDetector, PII_PATTERNS, luhnValid } from "./pii.js";
+export { SecretDetector, VENDOR_PATTERNS, shannonEntropy } from "./secrets.js";
+export { DEFAULT_SINK_RISK, TokenFlowDetector, type FlowRecord } from "./tokenflow.js";
 export {
   CodeExecutionDetector,
   ResourceAbuseDetector,
@@ -29,8 +29,8 @@ export {
   newCanary,
   toolFingerprint,
   toolText,
-} from "./owasp";
-export { decodedSegments } from "./injection";
+} from "./owasp.js";
+export { decodedSegments } from "./injection.js";
 
 export const DEFAULT_INPUT_DETECTORS = [
   "resource_abuse",

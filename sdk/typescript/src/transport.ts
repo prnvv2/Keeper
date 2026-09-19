@@ -12,12 +12,12 @@
  * strictly less reliable than it was before.
  */
 
-import type { TelemetryConfig } from "./config";
-import { TransportError } from "./errors";
-import type { Metrics } from "./observability";
-import { securityRelevant } from "./observability";
-import type { AuditEvent } from "./types";
-import { SDK_VERSION } from "./types";
+import type { TelemetryConfig } from "./config.js";
+import { TransportError } from "./errors.js";
+import type { Metrics } from "./observability.js";
+import { securityRelevant } from "./observability.js";
+import type { AuditEvent } from "./types.js";
+import { SDK_VERSION } from "./types.js";
 
 export interface HttpResponse {
   status: number;

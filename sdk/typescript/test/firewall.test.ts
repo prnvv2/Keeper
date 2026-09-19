@@ -23,8 +23,8 @@ import {
   toolCall,
   type Message,
   type RequestContext,
-} from "../src/index";
-import { defaultDetectors } from "../src/config";
+} from "../src/index.js";
+import { defaultDetectors } from "../src/config.js";
 
 function context(overrides: Partial<RequestContext> = {}): RequestContext {
   return {
@@ -553,8 +553,8 @@ describe("redaction", () => {
 
 describe("escalation", () => {
   it("beats averaging: one confident block is not diluted", async () => {
-    const { combineDecision } = await import("../src/types");
-    const findings: import("../src/types").Finding[] = Array.from({ length: 9 }, (_, i) => ({
+    const { combineDecision } = await import("../src/types.js");
+    const findings: import("../src/types.js").Finding[] = Array.from({ length: 9 }, (_, i) => ({
       detector: `d${i}`,
       detected: false,
       score: 0,

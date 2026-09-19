@@ -20,7 +20,7 @@ import {
   riskMatrix,
   threatsFor,
   type Finding,
-} from "../src/index";
+} from "../src/index.js";
 
 const keeper = () => new Keeper({ application: "owasp-tests" });
 
@@ -208,4 +208,31 @@ describe("coverage detectors", () => {
     expect(text).toContain('threat="LLM01"');
     expect(text).toContain("keeper_risk_score");
   });
+});
+
+describe("regex complexity guard", () => {
+  // These inputs made unbounded patterns go quadratic before their repeats were
+  // bounded. The budget is generous: it only catches catastrophic backtracking.
+  const pathological: Record<string, string> = {
+    dots: "a.".repeat(25_000),
+    brackets: "[".repeat(50_000),
+    openImages: "![x](".repeat(10_000),
+    angles: "<".repeat(50_000),
+    imgTags: "<img ".repeat(10_000),
+    rmFlags: "rm -" + "r".repeat(50_000),
+    base64ish: "QUJD".repeat(12_500),
+    // Header only, assembled at runtime so secret scanners never see the literal.
+    keyBlocks: ("-----BEGIN PRIVATE " + "KEY-----").repeat(1_800),
+  };
+  for (const [name, text] of Object.entries(pathological)) {
+    it(`stays linear on ${name}`, async () => {
+      const k = keeper();
+      const start = performance.now();
+      k.checkInput(text);
+      k.checkOutput(text);
+      await k.checkToolCall("files.search", { q: text });
+      k.checkToolDefinitions([{ name: "x", description: text, inputSchema: {} }], undefined, "s", false);
+      expect(performance.now() - start).toBeLessThan(5000);
+    });
+  }
 });

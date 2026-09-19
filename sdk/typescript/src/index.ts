@@ -14,7 +14,7 @@
  * plane and the same events feed the dashboard, alerting, and your SIEM.
  */
 
-export { Keeper, type ContextOptions, type KeeperInit } from "./client";
+export { Keeper, type ContextOptions, type KeeperInit } from "./client.js";
 export {
   FAIL_CLOSED,
   FAIL_OPEN,
@@ -30,7 +30,7 @@ export {
   type RedactionConfig,
   type RuntimeConfig,
   type TelemetryConfig,
-} from "./config";
+} from "./config.js";
 export {
   AuthenticationError,
   AuthorizationError,
@@ -41,7 +41,7 @@ export {
   PolicyError,
   RateLimitError,
   TransportError,
-} from "./errors";
+} from "./errors.js";
 export {
   DEFAULT_INPUT_DETECTORS,
   DEFAULT_OUTPUT_DETECTORS,
@@ -52,7 +52,7 @@ export {
   register as registerDetector,
   registered as registeredDetectors,
   type DetectorInput,
-} from "./detectors";
+} from "./detectors/index.js";
 export {
   EventBuilder,
   FanoutSink,
@@ -63,8 +63,8 @@ export {
   CallbackSink,
   securityRelevant,
   type Sink,
-} from "./observability";
-export { Pipeline, type EvaluateOptions } from "./pipeline";
+} from "./observability.js";
+export { Pipeline, type EvaluateOptions } from "./pipeline.js";
 export {
   PolicyEngine,
   PolicyProvider,
@@ -76,7 +76,7 @@ export {
   safeDefaultPolicy,
   type Policy,
   type Rule,
-} from "./policy";
+} from "./policy.js";
 export {
   AnthropicProvider,
   CallableProvider,
@@ -84,7 +84,7 @@ export {
   OpenAICompatibleProvider,
   parseToolCalls,
   type Provider,
-} from "./providers";
+} from "./providers.js";
 export {
   KillSwitch,
   MemoryFirewall,
@@ -94,7 +94,7 @@ export {
   type MemoryGateResult,
   type StreamResult,
   type ToolSpec,
-} from "./runtime";
+} from "./runtime.js";
 export {
   CodeExecutionDetector,
   ResourceAbuseDetector,
@@ -105,7 +105,7 @@ export {
   newCanary,
   toolFingerprint,
   toolText,
-} from "./detectors";
+} from "./detectors/index.js";
 export {
   ATLAS,
   CATEGORY_THREATS,
@@ -121,7 +121,7 @@ export {
   type Coverage,
   type CoverageRow,
   type Threat,
-} from "./taxonomy";
+} from "./taxonomy.js";
 export {
   DEFAULT_BAND_ACTIONS,
   RiskEngine,
@@ -136,7 +136,7 @@ export {
   type RiskBand,
   type RiskConfig,
   type ThreatRisk,
-} from "./risk";
-export { Authorizer, RateLimiter, authorizerFromPolicy, parsePermission, type Quota } from "./accesscontrol";
-export { ControlPlaneClient, TelemetryShipper } from "./transport";
-export * from "./types";
+} from "./risk.js";
+export { Authorizer, RateLimiter, authorizerFromPolicy, parsePermission, type Quota } from "./accesscontrol.js";
+export { ControlPlaneClient, TelemetryShipper } from "./transport.js";
+export * from "./types.js";

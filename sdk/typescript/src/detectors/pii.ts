@@ -10,9 +10,9 @@
  * into a support assistant should still get an answer.
  */
 
-import type { DetectorConfig } from "../config";
-import type { Action, Finding, Severity, Span, Stage } from "../types";
-import { Detector, type DetectorInput, register } from "./base";
+import type { DetectorConfig } from "../config.js";
+import type { Action, Finding, Severity, Span, Stage } from "../types.js";
+import { Detector, type DetectorInput, register } from "./base.js";
 
 export function luhnValid(digits: string): boolean {
   const nums = [...digits].filter((c) => c >= "0" && c <= "9").map(Number);
@@ -53,7 +53,7 @@ function validIBAN(value: string): boolean {
 type Entity = { pattern: RegExp; severity: Severity; validate?: (value: string) => boolean };
 
 export const PII_PATTERNS: Record<string, Entity> = {
-  email: { pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, severity: "medium" },
+  email: { pattern: /\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}\b/g, severity: "medium" },
   credit_card: { pattern: /\b(?:\d[ -]?){13,19}\b/g, severity: "high", validate: luhnValid },
   us_ssn: { pattern: /\b\d{3}[- ]\d{2}[- ]\d{4}\b/g, severity: "high", validate: validSSN },
   iban: { pattern: /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/g, severity: "high", validate: validIBAN },

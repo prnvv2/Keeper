@@ -48,11 +48,11 @@ from ..types import Finding, Span
 #: detectors ran. A disabled PII detector must not become a silent data leak
 #: into the audit store.
 SAFETY_NET: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("email", re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")),
+    ("email", re.compile(r"\b[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9.\-]{1,253}\.[A-Za-z]{2,24}\b")),
     ("card_like", re.compile(r"\b(?:\d[ \-]?){13,19}\b")),
     ("token_like", re.compile(r"\b(?:sk|pk|gh[pousr]|xox[abprs]|glpat)[-_][A-Za-z0-9_\-]{16,}\b")),
     ("bearer", re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._\-]{16,}")),
-    ("private_key", re.compile(r"-----BEGIN[^-]{0,40}PRIVATE KEY-----[\s\S]*?-----END[^-]{0,40}PRIVATE KEY-----")),
+    ("private_key", re.compile(r"-----BEGIN[^-]{0,40}PRIVATE KEY-----[\s\S]{0,16384}?-----END[^-]{0,40}PRIVATE KEY-----")),
 )
 
 

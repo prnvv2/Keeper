@@ -6,7 +6,7 @@
  * effect free, and must stay inside its latency budget.
  */
 
-import type { DetectorConfig } from "../config";
+import type { DetectorConfig } from "../config.js";
 import type {
   Action,
   Document,
@@ -18,8 +18,8 @@ import type {
   Stage,
   ToolCall,
   TrustLevel,
-} from "../types";
-import { ConfigurationError } from "../errors";
+} from "../types.js";
+import { ConfigurationError } from "../errors.js";
 
 export interface DetectorInput {
   payload: string;

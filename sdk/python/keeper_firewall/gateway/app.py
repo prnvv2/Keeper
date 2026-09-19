@@ -36,6 +36,7 @@ token-by-token latency. Native Anthropic streaming is a planned addition.
 from __future__ import annotations
 
 import contextlib
+import hmac
 import json
 import time
 from collections.abc import AsyncIterator, Mapping, Sequence
@@ -83,6 +84,20 @@ class GatewayConfig:
     tenant_header: str = "x-keeper-tenant"
     session_header: str = "x-keeper-session"
     credential_header: str = "x-keeper-key"
+    #: Requests larger than this are refused with 413 before parsing.
+    max_body_bytes: int = 8 * 1024 * 1024
+    #: Enables ``GET /keeper/events`` for callers presenting this bearer key.
+    #: Unset (the default) means the endpoint does not exist: recent audit
+    #: events contain prompts, and the gateway port is reachable by every
+    #: client application.
+    admin_key: str | None = None
+    #: Pin tool definitions across requests. Off by default: clients of a
+    #: shared gateway do not share one tool namespace, and pinning across them
+    #: would let the first client to name a tool "search" make every other
+    #: client's "search" look like a rug pull. When on, pins are scoped to the
+    #: ``x-keeper-tool-server`` header, falling back to tenant, then principal.
+    pin_tool_definitions: bool = False
+    tool_server_header: str = "x-keeper-tool-server"
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +243,9 @@ class KeeperGateway:
             return {"threats": self.keeper.coverage()}
 
         @app.get("/keeper/events")
-        async def events(limit: int = 50) -> Any:
+        async def events(request: Request, limit: int = 50) -> Any:
+            if not self._is_admin(request):
+                return JSONResponse({"error": {"message": "not found", "type": "not_found"}}, status_code=404)
             return {"events": self.keeper.recent_events(min(max(limit, 1), 500))}
 
         @app.post("/v1/chat/completions")
@@ -240,6 +257,40 @@ class KeeperGateway:
             return await self._anthropic(request)
 
     # -- shared screening --------------------------------------------------
+
+    def _is_admin(self, request: Request) -> bool:
+        key = self.config.admin_key
+        if not key:
+            return False
+        header = request.headers.get("authorization") or ""
+        presented = header[7:] if header.lower().startswith("bearer ") else ""
+        return bool(presented) and hmac.compare_digest(presented.encode(), key.encode())
+
+    async def _read_body(self, request: Request) -> dict[str, Any] | Response:
+        limit = self.config.max_body_bytes
+        declared = request.headers.get("content-length")
+        if declared and declared.isdigit() and int(declared) > limit:
+            return JSONResponse({"error": {"message": "request body too large", "type": "payload_too_large"}},
+                                status_code=413)
+        raw = await request.body()
+        if len(raw) > limit:
+            return JSONResponse({"error": {"message": "request body too large", "type": "payload_too_large"}},
+                                status_code=413)
+        try:
+            body = json.loads(raw)
+        except ValueError:
+            return JSONResponse({"error": {"message": "request body is not valid JSON", "type": "invalid_request"}},
+                                status_code=400)
+        if not isinstance(body, dict):
+            return JSONResponse({"error": {"message": "request body must be a JSON object", "type": "invalid_request"}},
+                                status_code=400)
+        return body
+
+    def _tool_server(self, request: Request, context: RequestContext) -> str:
+        return (
+            request.headers.get(self.config.tool_server_header)
+            or (f"tenant:{context.principal.tenant}" if context.principal.tenant else f"principal:{context.principal.id}")
+        )
 
     def _context(self, request: Request, body: Mapping[str, Any]) -> RequestContext:
         cfg, h = self.config, request.headers
@@ -264,13 +315,16 @@ class KeeperGateway:
         history: list[Message],
         tools: Sequence[Mapping[str, Any]],
         max_tokens: Any,
+        tool_server: str = "request",
     ) -> tuple[list[Decision], TrustLevel]:
         """Run access control and every input-side stage. Mutates redacted turns in place."""
         self.keeper.authorize(context, model=context.model)
         decisions: list[Decision] = []
 
         if tools:
-            for _tool, decision in self.keeper.check_tool_definitions(tools, context, server="request"):
+            for _tool, decision in self.keeper.check_tool_definitions(
+                tools, context, server=tool_server, pin=self.config.pin_tool_definitions
+            ):
                 decisions.append(decision)
                 if decision.blocked:
                     return decisions, TrustLevel.EXTERNAL
@@ -354,7 +408,10 @@ class KeeperGateway:
     # -- OpenAI ------------------------------------------------------------
 
     async def _openai(self, request: Request) -> Response:
-        body: dict[str, Any] = await request.json()
+        parsed_body = await self._read_body(request)
+        if isinstance(parsed_body, Response):
+            return parsed_body
+        body: dict[str, Any] = parsed_body
         messages: list[dict[str, Any]] = [dict(m) for m in body.get("messages") or []]
         body["messages"] = messages
         try:
@@ -382,7 +439,7 @@ class KeeperGateway:
         try:
             decisions, cause = await run_in_threadpool(
                 self._screen_request, context, turns, history[:start], body.get("tools") or [],
-                body.get("max_tokens") or body.get("max_completion_tokens"),
+                body.get("max_tokens") or body.get("max_completion_tokens"), self._tool_server(request, context),
             )
         except (AuthorizationError, RateLimitError, AuthenticationError) as exc:
             return await self._access_error(exc, anthropic=False)
@@ -542,7 +599,11 @@ class KeeperGateway:
                     if delta.get("role") and not sent and not text:
                         yield chunk({"role": delta["role"], "content": ""})
                     for part in delta.get("tool_calls") or []:
-                        slot = tool_parts.setdefault(int(part.get("index", 0)),
+                        try:
+                            index = int(part.get("index", 0))
+                        except (TypeError, ValueError):
+                            index = 0
+                        slot = tool_parts.setdefault(index,
                                                      {"id": None, "name": "", "arguments": ""})
                         slot["id"] = part.get("id") or slot["id"]
                         fn = part.get("function") or {}
@@ -600,7 +661,10 @@ class KeeperGateway:
     # -- Anthropic ---------------------------------------------------------
 
     async def _anthropic(self, request: Request) -> Response:
-        body: dict[str, Any] = await request.json()
+        parsed_body = await self._read_body(request)
+        if isinstance(parsed_body, Response):
+            return parsed_body
+        body: dict[str, Any] = parsed_body
         messages: list[dict[str, Any]] = [dict(m) for m in body.get("messages") or []]
         body["messages"] = messages
         try:
@@ -634,7 +698,7 @@ class KeeperGateway:
         try:
             decisions, cause = await run_in_threadpool(
                 self._screen_request, context, turns, history[: len(history) - (len(messages) - start)],
-                body.get("tools") or [], body.get("max_tokens"),
+                body.get("tools") or [], body.get("max_tokens"), self._tool_server(request, context),
             )
         except (AuthorizationError, RateLimitError, AuthenticationError) as exc:
             return await self._access_error(exc, anthropic=True)

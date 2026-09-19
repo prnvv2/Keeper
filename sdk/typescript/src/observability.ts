@@ -6,8 +6,8 @@
  * of the payload is allowed to leave the process at all (redaction).
  */
 
-import type { RedactionConfig, MetricsConfig } from "./config";
-import { serialiseRisk } from "./risk";
+import type { RedactionConfig, MetricsConfig } from "./config.js";
+import { serialiseRisk } from "./risk.js";
 import {
   SCHEMA_VERSION,
   SDK_VERSION,
@@ -23,7 +23,7 @@ import {
   serialiseFinding,
   serialiseTrace,
   severityRank,
-} from "./types";
+} from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Redaction
@@ -34,11 +34,11 @@ import {
  * detector must not silently become a data leak into the audit store.
  */
 const SAFETY_NET: [string, RegExp][] = [
-  ["email", /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g],
+  ["email", /\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}\b/g],
   ["card_like", /\b(?:\d[ -]?){13,19}\b/g],
   ["token_like", /\b(?:sk|pk|gh[pousr]|xox[abprs]|glpat)[-_][A-Za-z0-9_-]{16,}\b/g],
   ["bearer", /\bbearer\s+[A-Za-z0-9._-]{16,}/gi],
-  ["private_key", /-----BEGIN[^-]{0,40}PRIVATE KEY-----[\s\S]*?-----END[^-]{0,40}PRIVATE KEY-----/g],
+  ["private_key", /-----BEGIN[^-]{0,40}PRIVATE KEY-----[\s\S]{0,16384}?-----END[^-]{0,40}PRIVATE KEY-----/g],
 ];
 
 /**

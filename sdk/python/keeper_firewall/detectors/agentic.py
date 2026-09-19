@@ -50,7 +50,7 @@ def _s(id_: str, regex: str, weight: float, *, always: bool = False) -> tuple[st
 #: (id, pattern, weight, counts_even_on_exec_tools)
 EXEC_SIGNALS = (
     # destructive / remote execution: dangerous everywhere
-    _s("rm_rf", r"\brm\s+-(?:[a-z]*r[a-z]*f|[a-z]*f[a-z]*r)\w*\s+(?:/|~|\*|\$HOME|\.\.)", 0.8, always=True),
+    _s("rm_rf", r"\brm\s+-[a-z]{0,8}(?:r[a-z]{0,8}f|f[a-z]{0,8}r)\w{0,8}\s+(?:/|~|\*|\$HOME|\.\.)", 0.8, always=True),
     _s("pipe_to_shell", r"\b(?:curl|wget|iwr|Invoke-WebRequest)\b[^|]{0,200}\|\s*(?:sudo\s+)?(?:ba|z|)sh\b", 0.85, always=True),
     _s("reverse_shell", r"(?:/dev/tcp/|\bnc\b.{0,40}\s-e\s|\bbash\s+-i\s+>&|\bsocat\b.{0,60}exec:)", 0.9, always=True),
     _s("encoded_exec", r"(?:base64\s+(?:-d|--decode)[^|]{0,80}\|\s*(?:ba|z|)sh|powershell(?:\.exe)?\s+.{0,20}-e(?:nc|ncodedcommand)?\s+[A-Za-z0-9+/=]{16,})", 0.85, always=True),
@@ -191,6 +191,10 @@ class ToolPoisoningDetector(Detector):
         self.pin: bool = bool(opts.get("pin", True))
         #: ``{"server/tool": "<sha256>"}`` approved in review.
         self.pins: dict[str, str] = dict(opts.get("pins") or {})
+        #: Trust-on-first-use pins are capped: without a bound, a caller that
+        #: invents tool names grows this table forever. Pins loaded from
+        #: policy are never evicted; learned ones are refused past the cap.
+        self.max_pins: int = int(opts.get("max_pins", 10_000))
 
     def detect(self, data: DetectorInput) -> Finding:
         definition = data.metadata.get("tool_definition") or {}
@@ -223,10 +227,14 @@ class ToolPoisoningDetector(Detector):
         rug_pull = False
         key = f"{server}/{name}"
         fingerprint = tool_fingerprint(definition) if definition else None
-        if fingerprint and self.pin:
+        pin = data.metadata.get("pin")
+        if pin is None:
+            pin = self.pin
+        if fingerprint and pin:
             pinned = self.pins.get(key)
             if pinned is None:
-                self.pins[key] = fingerprint
+                if len(self.pins) < self.max_pins:
+                    self.pins[key] = fingerprint
             elif pinned != fingerprint:
                 rug_pull = True
                 weights["definition_changed"] = 0.9

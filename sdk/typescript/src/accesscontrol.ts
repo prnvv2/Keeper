@@ -12,9 +12,9 @@
  * provider.
  */
 
-import { AuthorizationError, RateLimitError } from "./errors";
-import { compileCondition } from "./policy";
-import type { Principal } from "./types";
+import { AuthorizationError, RateLimitError } from "./errors.js";
+import { compileCondition } from "./policy.js";
+import type { Principal } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Authorization

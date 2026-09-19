@@ -29,8 +29,11 @@ jobs:
       - name: Audit Python dependencies
         run: |
           pip install pip-audit
-          pip install ./sdk/python ./control-plane
-          pip-audit --strict --desc
+          pip install "./sdk/python[gateway,yaml]" ./control-plane
+          # Keeper's own packages are not on PyPI, and --strict fails on anything
+          # it cannot look up. Audit everything they pulled in instead.
+          pip freeze --exclude-editable | grep -viE '^keeper[-_](firewall|control[-_]plane)' > audit-requirements.txt
+          pip-audit --strict --desc -r audit-requirements.txt
 
       - name: Audit npm dependencies
         run: |

@@ -38,7 +38,7 @@ route to the provider for everything else.
 
 ```
 client ──► access control           identity headers, model RBAC, rate limits
-       ──► tool definitions         screened + pinned                 MCP03 / ASI04
+       ──► tool definitions         screened (pinned with --pin-tools) MCP03 / ASI04
        ──► the new turn             user text → INPUT, tool results → TOOL_RESULT
        ──► upstream model           (only if nothing blocked)
        ──► response text            OUTPUT stage                      LLM02 / LLM05 / LLM07
@@ -99,6 +99,16 @@ hold the provider credential and replace whatever the client sent.
 Applications never see the key. That's what makes the gateway a boundary they
 can't route around.
 
+**Tool definitions** in every request are screened for embedded directives.
+*Pinning* them across requests (rug-pull detection) is off by default: clients
+of a shared gateway don't share one tool namespace, and pinning across them
+would let the first client to define a tool called `search` make everyone
+else's `search` look like a rug pull. `--pin-tools` turns it on, scoped to the
+`x-keeper-tool-server` header (falling back to tenant, then principal).
+
+Requests over `max_body_bytes` (default 8 MiB) are refused with 413 before
+parsing.
+
 ## Operating it
 
 | Endpoint | |
@@ -106,7 +116,7 @@ can't route around.
 | `GET /healthz` | Firewall health: policy age, telemetry queue, detectors |
 | `GET /metrics` | Prometheus, including `keeper_threat_detections_total` and `keeper_risk_score` |
 | `GET /keeper/coverage` | OWASP coverage of this configuration |
-| `GET /keeper/events?limit=50` | The last audit events held in memory |
+| `GET /keeper/events?limit=50` | The last audit events held in memory. **Returns 404 unless `--admin-key-env` is set**, and then only for `Authorization: Bearer <that key>`, because audit events contain prompts and the gateway port is reachable by every client |
 
 Embedding it in your own ASGI app:
 

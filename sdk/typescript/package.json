@@ -12,19 +12,30 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
-  "engines": { "node": ">=18" },
-  "keywords": ["llm", "security", "firewall", "prompt-injection", "observability", "ai-security"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "llm",
+    "security",
+    "firewall",
+    "prompt-injection",
+    "observability",
+    "ai-security"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "dependencies": {},
   "devDependencies": {
     "@types/node": "^22.5.0",
     "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
+    "vitest": "^4.1.11"
   }
 }

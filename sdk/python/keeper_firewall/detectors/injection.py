@@ -84,7 +84,7 @@ SIGNALS: tuple[Signal, ...] = (
 #: zero-width joiners, bidi overrides, and the Unicode "tag" block, which
 #: renders as nothing at all but is tokenised normally by most models.
 INVISIBLE = re.compile(
-    "[​-‏‪-‮⁠-⁤﻿󠀀-󠁿]"
+    "[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff\U000e0000-\U000e007f]"
 )
 
 #: How much a boundary multiplies the score. A document or tool result that
@@ -106,6 +106,9 @@ _B64_CANDIDATE = re.compile(r"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{16,}={0,2}(?![A-Z
 _HEX_CANDIDATE = re.compile(r"(?<![0-9a-fA-F])(?:[0-9a-fA-F]{2}){12,}(?![0-9a-fA-F])")
 
 
+_MAX_DECODE_CHARS = 16_384
+
+
 def decoded_segments(text: str, *, limit: int = 8) -> list[str]:
     """Printable plaintexts hidden as base64 or hex inside ``text``.
 
@@ -119,8 +122,11 @@ def decoded_segments(text: str, *, limit: int = 8) -> list[str]:
         for m in regex.finditer(text):
             if len(out) >= limit:
                 return out
+            segment = m.group()
+            if len(segment) > _MAX_DECODE_CHARS:
+                continue  # a 1 MB "base64" run is not a smuggled instruction
             try:
-                raw = decoder(m.group())
+                raw = decoder(segment)
             except (ValueError, binascii.Error):
                 continue
             try:
@@ -128,7 +134,7 @@ def decoded_segments(text: str, *, limit: int = 8) -> list[str]:
             except UnicodeDecodeError:
                 continue
             printable = sum(ch.isprintable() or ch.isspace() for ch in plain)
-            if len(plain) >= 8 and printable / len(plain) > 0.95 and re.search(r"[A-Za-z]{3,}\s+[A-Za-z]{2,}", plain):
+            if len(plain) >= 8 and printable / len(plain) > 0.95 and re.search(r"[A-Za-z]{3}\s[A-Za-z]{2}", plain):
                 out.append(plain)
     return out
 

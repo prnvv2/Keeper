@@ -303,7 +303,7 @@ Without Keeper: the memory reads as user history and the purchase proceeds.
 
 Six turns, none individually alarming: an innocuous chemistry question, a
 refusal, a rephrase, another refusal, "come on, just the reagent names?", then
-a question about detonator wiring.
+a question that crosses into weapons construction.
 
 `trajectory` sees refusal pressure (2 refusals + persistence markers), topic
 drift (`chem_bio` density rising from a near-zero opening) and decomposition

@@ -149,7 +149,7 @@ export interface Decision {
   elapsedMs: number;
   failModeEngaged?: string | null;
   /** Likelihood x impact assessment; see `risk.ts`. */
-  risk?: import("./risk").RiskAssessment;
+  risk?: import("./risk.js").RiskAssessment;
 }
 
 /** OWASP threat ids implicated by a decision, deduplicated in finding order. */

@@ -229,4 +229,62 @@ def test_observability_endpoints():
     coverage = client.get("/keeper/coverage").json()["threats"]
     assert {row["id"] for row in coverage} >= {"LLM01", "ASI01", "MCP03"}
     assert client.get("/healthz").json()["status"] == "ok"
-    assert client.get("/keeper/events").json()["events"]
+    assert client.get("/keeper/events").status_code == 404   # needs admin_key
+
+
+# -- hardening -------------------------------------------------------------------
+
+
+def test_events_endpoint_is_hidden_without_an_admin_key():
+    client, _, _ = make(lambda b: httpx.Response(200, json=openai_reply()))
+    chat(client, "hello")
+    assert client.get("/keeper/events").status_code == 404
+
+
+def test_events_endpoint_requires_the_admin_key():
+    client, _, _ = make(lambda b: httpx.Response(200, json=openai_reply()), admin_key="gw-admin")
+    chat(client, "hello")
+    assert client.get("/keeper/events").status_code == 404
+    assert client.get("/keeper/events", headers={"authorization": "Bearer wrong"}).status_code == 404
+    ok = client.get("/keeper/events", headers={"authorization": "Bearer gw-admin"})
+    assert ok.status_code == 200 and ok.json()["events"]
+
+
+def _tool(description: str) -> list[dict[str, Any]]:
+    return [{"type": "function", "function": {"name": "search", "description": description,
+                                              "parameters": {"type": "object"}}}]
+
+
+def test_one_client_cannot_poison_another_clients_tool_pins():
+    client, upstream, _ = make(lambda b: httpx.Response(200, json=openai_reply()))
+    first = chat(client, "hi", tools=_tool("Search the web."))
+    second = client.post("/v1/chat/completions", json={
+        "model": "gpt-test", "messages": [{"role": "user", "content": "hi"}], "tools": _tool("Search the company wiki."),
+    }, headers={"x-keeper-user": "bob"})
+    assert first.status_code == 200 and second.status_code == 200
+    assert len(upstream.requests) == 2
+
+
+def test_opt_in_pinning_is_scoped_per_tool_server():
+    client, _, _ = make(lambda b: httpx.Response(200, json=openai_reply()), pin_tool_definitions=True)
+
+    def send(desc: str, server: str):
+        return client.post("/v1/chat/completions", json={
+            "model": "gpt-test", "messages": [{"role": "user", "content": "hi"}], "tools": _tool(desc),
+        }, headers={"x-keeper-tool-server": server})
+
+    assert send("Search the web.", "mcp-a").status_code == 200
+    assert send("Search the wiki.", "mcp-b").status_code == 200      # different server: no collision
+    changed = send("Search the wiki and more.", "mcp-b")             # same server, changed: rug pull
+    assert changed.status_code == 400 and "MCP03" in changed.json()["error"]["threats"]
+
+
+def test_oversized_and_malformed_bodies_are_refused():
+    client, upstream, _ = make(lambda b: httpx.Response(200, json=openai_reply()), max_body_bytes=1024)
+    big = client.post("/v1/chat/completions", json={"model": "m", "messages": [{"role": "user", "content": "x" * 5000}]})
+    assert big.status_code == 413
+    bad = client.post("/v1/chat/completions", content=b"{not json", headers={"content-type": "application/json"})
+    assert bad.status_code == 400
+    not_obj = client.post("/v1/messages", json=[1, 2, 3])
+    assert not_obj.status_code == 400
+    assert upstream.requests == []

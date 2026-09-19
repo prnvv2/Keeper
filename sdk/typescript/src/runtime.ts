@@ -7,8 +7,8 @@
  * memory. That is where most real agent compromises land.
  */
 
-import { BlockedError } from "./errors";
-import type { Pipeline } from "./pipeline";
+import { BlockedError } from "./errors.js";
+import type { Pipeline } from "./pipeline.js";
 import {
   argumentText,
   memoryAuthority,
@@ -25,7 +25,7 @@ import {
   type Stage,
   type ToolCall,
   type TrustLevel,
-} from "./types";
+} from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Tool guardrails

@@ -139,7 +139,7 @@ These tables are generated from `taxonomy.py`; "Default status" is what
 |---|---|---|---|
 | `prompt_injection` (extended) | LLM01, ASI01, plus boundary threats | Now decodes base64 and hex segments and rescans the plaintext. An instruction hidden in `aWdub3Jl…` counts in full, plus an obfuscation signal for having been hidden. | block ≥ 0.6, flag ≥ 0.35 |
 | `system_prompt_leakage` | LLM07 | **Canary tokens** (`keeper.canary()`), and verbatim reuse of system-prompt 6-grams in output. | block |
-| `unsafe_output` | LLM05 (+ASI05) | Markdown or HTML image exfiltration to non-allowlisted hosts; `<script>`, iframes, event handlers, `javascript:` URIs; shell and SQL payloads. Shell and SQL only *flag* unless `executes_output: true`. | block exfil and active HTML |
+| `unsafe_output` | LLM05 (+ASI05) | Markdown or HTML image exfiltration to non-allowlisted hosts; script tags, iframes, event handlers, `javascript:` URIs; shell and SQL payloads. Shell and SQL only *flag* unless `executes_output: true`. | block exfil and active HTML |
 | `code_execution` | ASI05, MCP05 | Execution payloads in tool arguments. Sink-aware: on a shell or interpreter tool only destructive or remote-exec idioms count; on any other tool, metacharacters and interpreter calls are the injection. | block ≥ 0.6 |
 | `tool_poisoning` | MCP03, ASI04, LLM03 | Hidden directive tags, pre-use directives, sensitive paths (`~/.ssh`, `mcp.json`), "do not tell the user", side-channel parameters, tool shadowing, invisible Unicode, and **rug pulls**: a definition that changed after it was pinned. | block ≥ 0.6 |
 | `resource_abuse` | LLM10 | Oversized prompts or history, token and character floods, "repeat forever" requests, over-budget `max_tokens`. | block oversize/flood, flag endless |

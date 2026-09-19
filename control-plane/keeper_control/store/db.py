@@ -238,7 +238,11 @@ def _add_missing_columns(engine: Engine) -> None:
         missing = [c for c in table.columns if c.name not in existing]
         if not missing:
             continue
+        quote = engine.dialect.identifier_preparer.quote
         with engine.begin() as conn:
             for column in missing:
+                # Identifiers come from this module's own Table definitions,
+                # never from input; they are quoted anyway.
                 ddl = column.type.compile(dialect=engine.dialect)
-                conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {column.name} {ddl}'))
+                statement = f"ALTER TABLE {quote(table.name)} ADD COLUMN {quote(column.name)} {ddl}"
+                conn.execute(text(statement))  # nosemgrep: avoid-sqlalchemy-text

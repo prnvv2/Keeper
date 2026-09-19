@@ -9,10 +9,10 @@
  * Token-Flow Firewall paper's source/sink framing.
  */
 
-import type { DetectorConfig } from "../config";
-import type { Action, Finding, Span, Stage, TrustLevel } from "../types";
-import { trustAuthority } from "../types";
-import { Detector, type DetectorInput, register } from "./base";
+import type { DetectorConfig } from "../config.js";
+import type { Action, Finding, Span, Stage, TrustLevel } from "../types.js";
+import { trustAuthority } from "../types.js";
+import { Detector, type DetectorInput, register } from "./base.js";
 
 interface Signal {
   id: string;
@@ -76,6 +76,7 @@ const TRUST_MULTIPLIER: Record<TrustLevel, number> = {
 const B64_CANDIDATE = /(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{16,}={0,2}(?![A-Za-z0-9+/=])/g;
 const HEX_CANDIDATE = /(?<![0-9a-fA-F])(?:[0-9a-fA-F]{2}){12,}(?![0-9a-fA-F])/g;
 const utf8 = new TextDecoder("utf-8", { fatal: true });
+const MAX_DECODE_CHARS = 16_384;
 
 function decodeB64(segment: string): Uint8Array {
   const padded = segment + "=".repeat((4 - (segment.length % 4)) % 4);
@@ -98,6 +99,7 @@ export function decodedSegments(text: string, limit = 8): string[] {
     regex.lastIndex = 0;
     for (let m = regex.exec(text); m; m = regex.exec(text)) {
       if (out.length >= limit) return out;
+      if (m[0].length > MAX_DECODE_CHARS) continue; // a 1 MB "base64" run is not a smuggled instruction
       let plain: string;
       try {
         plain = utf8.decode(decode(m[0]));
@@ -105,7 +107,7 @@ export function decodedSegments(text: string, limit = 8): string[] {
         continue;
       }
       const printable = [...plain].filter((ch) => /[\P{C}\s]/u.test(ch)).length;
-      if (plain.length >= 8 && printable / plain.length > 0.95 && /[A-Za-z]{3,}\s+[A-Za-z]{2,}/.test(plain)) out.push(plain);
+      if (plain.length >= 8 && printable / plain.length > 0.95 && /[A-Za-z]{3}\s[A-Za-z]{2}/.test(plain)) out.push(plain);
     }
   }
   return out;

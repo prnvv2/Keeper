@@ -6,9 +6,9 @@
  * policy trace and is combined by escalation like everything else.
  */
 
-import { PolicyError } from "./errors";
-import { THREATS } from "./taxonomy";
-import type { Action, Finding, PolicyTrace, RiskTier, Stage, ToolCall } from "./types";
+import { PolicyError } from "./errors.js";
+import { THREATS } from "./taxonomy.js";
+import type { Action, Finding, PolicyTrace, RiskTier, Stage, ToolCall } from "./types.js";
 
 export type RiskBand = "none" | "low" | "medium" | "high" | "critical";
 

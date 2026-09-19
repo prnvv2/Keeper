@@ -12,9 +12,9 @@
  * second SDK, and use `fetch` rather than adding a dependency.
  */
 
-import { ConfigurationError, KeeperError } from "./errors";
-import type { LLMResponse, Message, ToolCall } from "./types";
-import { newId } from "./types";
+import { ConfigurationError, KeeperError } from "./errors.js";
+import type { LLMResponse, Message, ToolCall } from "./types.js";
+import { newId } from "./types.js";
 
 export interface Provider {
   name: string;

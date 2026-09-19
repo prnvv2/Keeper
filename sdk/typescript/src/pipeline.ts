@@ -14,7 +14,7 @@
  * bound.
  */
 
-import { FAIL_CLOSED, FAIL_OPEN, type KeeperConfig } from "./config";
+import { FAIL_CLOSED, FAIL_OPEN, type KeeperConfig } from "./config.js";
 import {
   DEFAULT_INPUT_DETECTORS,
   DEFAULT_OUTPUT_DETECTORS,
@@ -23,13 +23,13 @@ import {
   detectorInput,
   type Detector,
   type DetectorInput,
-} from "./detectors";
-import { PolicyError } from "./errors";
-import type { EventBuilder, FanoutSink, Metrics } from "./observability";
-import { buildFacts, type PolicyProvider } from "./policy";
-import { RiskEngine, type RiskAssessment } from "./risk";
-import { THREATS, annotate } from "./taxonomy";
-import type { TelemetryShipper } from "./transport";
+} from "./detectors/index.js";
+import { PolicyError } from "./errors.js";
+import type { EventBuilder, FanoutSink, Metrics } from "./observability.js";
+import { buildFacts, type PolicyProvider } from "./policy.js";
+import { RiskEngine, type RiskAssessment } from "./risk.js";
+import { THREATS, annotate } from "./taxonomy.js";
+import type { TelemetryShipper } from "./transport.js";
 import {
   combineDecision,
   type Action,
@@ -43,7 +43,7 @@ import {
   type Stage,
   type ToolCall,
   type TrustLevel,
-} from "./types";
+} from "./types.js";
 
 const STAGE_DEFAULTS: Partial<Record<Stage, readonly string[]>> = {
   input: DEFAULT_INPUT_DETECTORS,

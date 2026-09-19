@@ -68,7 +68,7 @@ def _valid_iban(value: str) -> bool:
 # label -> (pattern, severity, validator)
 PII_PATTERNS: dict[str, tuple[re.Pattern[str], Severity, Callable[[str], bool] | None]] = {
     "email": (
-        re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"),
+        re.compile(r"\b[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9.\-]{1,253}\.[A-Za-z]{2,24}\b"),
         Severity.MEDIUM,
         None,
     ),

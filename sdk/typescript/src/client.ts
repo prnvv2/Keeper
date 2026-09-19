@@ -14,10 +14,10 @@
  * without the application changing its architecture.
  */
 
-import { Authorizer, RateLimiter, authorizerFromPolicy } from "./accesscontrol";
-import { loadConfig, type KeeperConfig, type KeeperOptions } from "./config";
-import { newCanary, toolText, type Detector } from "./detectors";
-import { AuthorizationError, BlockedError, RateLimitError } from "./errors";
+import { Authorizer, RateLimiter, authorizerFromPolicy } from "./accesscontrol.js";
+import { loadConfig, type KeeperConfig, type KeeperOptions } from "./config.js";
+import { newCanary, toolText, type Detector } from "./detectors/index.js";
+import { AuthorizationError, BlockedError, RateLimitError } from "./errors.js";
 import {
   EventBuilder,
   FanoutSink,
@@ -26,13 +26,13 @@ import {
   Redactor,
   StreamSink,
   type Sink,
-} from "./observability";
-import { Pipeline } from "./pipeline";
-import { PolicyProvider, type Policy } from "./policy";
-import { coverageReport, type CoverageRow } from "./taxonomy";
-import { CallableProvider, EchoProvider, type Provider } from "./providers";
-import { MemoryFirewall, StreamGuard, ToolGuard, defaultToolSpecs, type ToolSpec } from "./runtime";
-import { ControlPlaneClient, TelemetryShipper } from "./transport";
+} from "./observability.js";
+import { Pipeline } from "./pipeline.js";
+import { PolicyProvider, type Policy } from "./policy.js";
+import { coverageReport, type CoverageRow } from "./taxonomy.js";
+import { CallableProvider, EchoProvider, type Provider } from "./providers.js";
+import { MemoryFirewall, StreamGuard, ToolGuard, defaultToolSpecs, type ToolSpec } from "./runtime.js";
+import { ControlPlaneClient, TelemetryShipper } from "./transport.js";
 import {
   SDK_VERSION,
   anonymous,
@@ -48,7 +48,7 @@ import {
   type Principal,
   type RequestContext,
   type TrustLevel,
-} from "./types";
+} from "./types.js";
 
 export interface KeeperInit extends KeeperOptions {
   provider?: Provider | ((messages: Record<string, unknown>[], options?: Record<string, any>) => any);
@@ -304,12 +304,13 @@ export class Keeper {
     tools: Record<string, any>[],
     context = this.context(),
     server = "default",
+    pin?: boolean,
   ): [Record<string, any>, Decision][] {
     return tools.map((raw) => {
       const definition = (raw?.function ?? raw) as Record<string, any>;
       const decision = this.pipeline.evaluate("tool_definition", toolText(definition), context, {
         trust: "external",
-        metadata: { toolDefinition: definition, server, tool: definition.name },
+        metadata: { toolDefinition: definition, server, tool: definition.name, pin },
       });
       return [raw, decision];
     });

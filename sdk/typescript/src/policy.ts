@@ -9,10 +9,10 @@
  * safe to accept a document from the control plane at all.
  */
 
-import { bandRank, parseRiskConfig, type RiskAssessment, type RiskBand, type RiskConfig } from "./risk";
-import { PolicyError } from "./errors";
-import type { Action, Finding, PolicyTrace, RequestContext, Severity, Stage, ToolCall, TrustLevel } from "./types";
-import { escalates, nowMs, severityRank } from "./types";
+import { bandRank, parseRiskConfig, type RiskAssessment, type RiskBand, type RiskConfig } from "./risk.js";
+import { PolicyError } from "./errors.js";
+import type { Action, Finding, PolicyTrace, RequestContext, Severity, Stage, ToolCall, TrustLevel } from "./types.js";
+import { escalates, nowMs, severityRank } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Condition language

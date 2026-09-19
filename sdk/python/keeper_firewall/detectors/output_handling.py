@@ -35,18 +35,18 @@ from ..config import DetectorConfig
 from ..types import Action, Finding, Severity, Span, Stage
 from .base import Detector, DetectorInput, detector
 
-_MD_URL = re.compile(r"!?\[[^\]\n]{0,200}\]\(\s*<?(https?://[^\s)>]+)>?(?:\s+\"[^\"]*\")?\s*\)", re.IGNORECASE)
-_HTML_IMG = re.compile(r"<img\b[^>]*\bsrc\s*=\s*[\"']?(https?://[^\s\"'>]+)", re.IGNORECASE)
+_MD_URL = re.compile(r"!?\[[^\]\n]{0,200}\]\(\s*<?(https?://[^\s)>]{1,2048})>?(?:\s+\"[^\"\n]{0,200}\")?\s*\)", re.IGNORECASE)
+_HTML_IMG = re.compile(r"<img\b[^<>]{0,512}\bsrc\s*=\s*[\"']?(https?://[^\s\"'>]{1,2048})", re.IGNORECASE)
 
 _ACTIVE_HTML = (
     ("script_tag", re.compile(r"<\s*script\b", re.IGNORECASE), 0.85),
     ("iframe_tag", re.compile(r"<\s*(?:iframe|object|embed)\b", re.IGNORECASE), 0.7),
-    ("event_handler", re.compile(r"<[^>]+\bon(?:error|load|click|mouseover|focus)\s*=", re.IGNORECASE), 0.8),
+    ("event_handler", re.compile(r"<[^<>]{0,512}\bon(?:error|load|click|mouseover|focus)\s*=", re.IGNORECASE), 0.8),
     ("javascript_uri", re.compile(r"(?:href|src)\s*=\s*[\"']?\s*javascript:", re.IGNORECASE), 0.8),
 )
 
 _SHELL = (
-    ("rm_root", re.compile(r"\brm\s+-(?:[a-z]*r[a-z]*f|[a-z]*f[a-z]*r)[a-z]*\s+(?:/|~|\*|\$HOME)(?:\s|$)", re.IGNORECASE), 0.6),
+    ("rm_root", re.compile(r"\brm\s+-[a-z]{0,8}(?:r[a-z]{0,8}f|f[a-z]{0,8}r)[a-z]{0,8}\s+(?:/|~|\*|\$HOME)(?:\s|$)", re.IGNORECASE), 0.6),
     ("pipe_to_shell", re.compile(r"\b(?:curl|wget|iwr|Invoke-WebRequest)\b[^\n|]{0,200}\|\s*(?:sudo\s+)?(?:ba|z|)sh\b", re.IGNORECASE), 0.6),
     ("reverse_shell", re.compile(r"(?:/dev/tcp/|\bnc\b[^\n]{0,40}\s-e\s|\bbash\s+-i\s+>&)", re.IGNORECASE), 0.75),
     ("fork_bomb", re.compile(r":\(\)\s*\{\s*:\|:&\s*\};:"), 0.6),

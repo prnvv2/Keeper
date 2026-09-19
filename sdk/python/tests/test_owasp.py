@@ -272,3 +272,49 @@ def test_metrics_expose_threats_and_risk(keeper):
     text = keeper.metrics_text()
     assert "keeper_threat_detections_total" in text and 'threat="LLM01"' in text
     assert "keeper_risk_score" in text
+
+
+def test_learned_tool_pins_are_bounded(keeper):
+    detector = keeper.pipeline.detector("tool_poisoning")
+    detector.max_pins = 3
+    tools = [{"name": f"t{i}", "description": "Harmless.", "inputSchema": {}} for i in range(10)]
+    keeper.check_tool_definitions(tools, server="flood")
+    assert len(detector.pins) == 3
+
+
+def test_pinning_can_be_skipped_per_call(keeper):
+    tool = {"name": "lookup", "description": "Look up.", "inputSchema": {}}
+    keeper.check_tool_definitions([tool], server="s", pin=False)
+    assert "s/lookup" not in keeper.pipeline.detector("tool_poisoning").pins
+
+
+# -- regex complexity guard ----------------------------------------------------------
+#
+# Every detector regex runs on attacker-controlled text. These inputs made the
+# unbounded patterns go quadratic (minutes on 100 KB) before their repeats were
+# bounded; the budget here is generous so it only catches that class of bug.
+
+PATHOLOGICAL = {
+    "dots": "a." * 25_000,
+    "brackets": "[" * 50_000,
+    "open_images": "![x](" * 10_000,
+    "angles": "<" * 50_000,
+    "img_tags": "<img " * 10_000,
+    "rm_flags": "rm -" + "r" * 50_000,
+    "base64ish": "QUJD" * 12_500,
+    # Header only, assembled at runtime so secret scanners never see the literal.
+    "key_blocks": ("-----BEGIN PRIVATE " + "KEY-----") * 1_800,
+}
+
+
+@pytest.mark.parametrize("name", sorted(PATHOLOGICAL))
+def test_detectors_stay_linear_on_pathological_input(keeper, name):
+    import time
+
+    text = PATHOLOGICAL[name]
+    start = time.perf_counter()
+    keeper.check_input(text)
+    keeper.check_output(text)
+    keeper.check_tool_call("files.search", {"q": text})
+    keeper.check_tool_definitions([{"name": "x", "description": text, "inputSchema": {}}], pin=False)
+    assert time.perf_counter() - start < 5.0, f"{name} took too long: possible catastrophic backtracking"

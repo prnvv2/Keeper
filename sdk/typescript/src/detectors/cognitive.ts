@@ -16,10 +16,10 @@
  * objective into individually innocuous sub-questions (ActorAttack).
  */
 
-import type { DetectorConfig } from "../config";
-import type { Action, Finding, Message, Span, Stage } from "../types";
-import { trustAuthority } from "../types";
-import { Detector, type DetectorInput, register } from "./base";
+import type { DetectorConfig } from "../config.js";
+import type { Action, Finding, Message, Span, Stage } from "../types.js";
+import { trustAuthority } from "../types.js";
+import { Detector, type DetectorInput, register } from "./base.js";
 
 // ---------------------------------------------------------------------------
 // Zero-trust context gate

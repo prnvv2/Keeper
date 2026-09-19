@@ -12,10 +12,10 @@
 
 import { createHash, randomBytes } from "node:crypto";
 
-import type { DetectorConfig } from "../config";
-import { argumentText, type Finding, type Span, type Stage } from "../types";
-import { Detector, type DetectorInput, register } from "./base";
-import { INVISIBLE, SIGNALS, normalise } from "./injection";
+import type { DetectorConfig } from "../config.js";
+import { argumentText, type Finding, type Span, type Stage } from "../types.js";
+import { Detector, type DetectorInput, register } from "./base.js";
+import { INVISIBLE, SIGNALS, normalise } from "./injection.js";
 
 function saturate(weights: number[]): number {
   return 1 - weights.reduce((product, w) => product * (1 - Math.max(0, Math.min(1, w))), 1);
@@ -106,17 +106,17 @@ export class SystemPromptLeakageDetector extends Detector {
 // LLM05 — improper output handling
 // ---------------------------------------------------------------------------
 
-const MD_URL = /!?\[[^\]\n]{0,200}\]\(\s*<?(https?:\/\/[^\s)>]+)>?(?:\s+"[^"]*")?\s*\)/gi;
-const HTML_IMG = /<img\b[^>]*\bsrc\s*=\s*["']?(https?:\/\/[^\s"'>]+)/gi;
+const MD_URL = /!?\[[^\]\n]{0,200}\]\(\s*<?(https?:\/\/[^\s)>]{1,2048})>?(?:\s+"[^"\n]{0,200}")?\s*\)/gi;
+const HTML_IMG = /<img\b[^<>]{0,512}\bsrc\s*=\s*["']?(https?:\/\/[^\s"'>]{1,2048})/gi;
 
 const ACTIVE_HTML: [string, RegExp, number][] = [
   ["script_tag", /<\s*script\b/i, 0.85],
   ["iframe_tag", /<\s*(?:iframe|object|embed)\b/i, 0.7],
-  ["event_handler", /<[^>]+\bon(?:error|load|click|mouseover|focus)\s*=/i, 0.8],
+  ["event_handler", /<[^<>]{0,512}\bon(?:error|load|click|mouseover|focus)\s*=/i, 0.8],
   ["javascript_uri", /(?:href|src)\s*=\s*["']?\s*javascript:/i, 0.8],
 ];
 const SHELL: [string, RegExp, number][] = [
-  ["rm_root", /\brm\s+-(?:[a-z]*r[a-z]*f|[a-z]*f[a-z]*r)[a-z]*\s+(?:\/|~|\*|\$HOME)(?:\s|$)/i, 0.6],
+  ["rm_root", /\brm\s+-[a-z]{0,8}(?:r[a-z]{0,8}f|f[a-z]{0,8}r)[a-z]{0,8}\s+(?:\/|~|\*|\$HOME)(?:\s|$)/i, 0.6],
   ["pipe_to_shell", /\b(?:curl|wget|iwr|Invoke-WebRequest)\b[^\n|]{0,200}\|\s*(?:sudo\s+)?(?:ba|z|)sh\b/i, 0.6],
   ["reverse_shell", /(?:\/dev\/tcp\/|\bnc\b[^\n]{0,40}\s-e\s|\bbash\s+-i\s+>&)/i, 0.75],
   ["fork_bomb", /:\(\)\s*\{\s*:\|:&\s*\};:/, 0.6],
@@ -220,7 +220,7 @@ const EXEC_TOOL = /(?:^|[._-])(?:shell|bash|exec|execute|run_command|terminal|su
 
 /** [id, pattern, weight, countsEvenOnExecTools] */
 export const EXEC_SIGNALS: [string, RegExp, number, boolean][] = [
-  ["rm_rf", /\brm\s+-(?:[a-z]*r[a-z]*f|[a-z]*f[a-z]*r)\w*\s+(?:\/|~|\*|\$HOME|\.\.)/i, 0.8, true],
+  ["rm_rf", /\brm\s+-[a-z]{0,8}(?:r[a-z]{0,8}f|f[a-z]{0,8}r)\w{0,8}\s+(?:\/|~|\*|\$HOME|\.\.)/i, 0.8, true],
   ["pipe_to_shell", /\b(?:curl|wget|iwr|Invoke-WebRequest)\b[^|]{0,200}\|\s*(?:sudo\s+)?(?:ba|z|)sh\b/i, 0.85, true],
   ["reverse_shell", /(?:\/dev\/tcp\/|\bnc\b.{0,40}\s-e\s|\bbash\s+-i\s+>&|\bsocat\b.{0,60}exec:)/i, 0.9, true],
   ["encoded_exec", /(?:base64\s+(?:-d|--decode)[^|]{0,80}\|\s*(?:ba|z|)sh|powershell(?:\.exe)?\s+.{0,20}-e(?:nc|ncodedcommand)?\s+[A-Za-z0-9+/=]{16,})/i, 0.85, true],
@@ -334,12 +334,15 @@ export class ToolPoisoningDetector extends Detector {
   readonly pins: Map<string, string>;
   private readonly threshold: number;
   private readonly pin: boolean;
+  /** Learned pins are capped so invented tool names cannot grow the table forever. */
+  private readonly maxPins: number;
 
   constructor(config: DetectorConfig) {
     super(config);
     this.threshold = config.threshold || 0.6;
     this.pin = config.options.pin ?? true;
     this.pins = new Map(Object.entries(config.options.pins ?? {}));
+    this.maxPins = config.options.maxPins ?? 10_000;
   }
 
   detect(data: DetectorInput): Finding {
@@ -375,10 +378,12 @@ export class ToolPoisoningDetector extends Detector {
     let rugPull = false;
     const key = `${server}/${name}`;
     const fingerprint = Object.keys(definition).length ? toolFingerprint(definition) : null;
-    if (fingerprint && this.pin) {
+    const pin = (data.metadata.pin as boolean | undefined) ?? this.pin;
+    if (fingerprint && pin) {
       const pinned = this.pins.get(key);
-      if (pinned === undefined) this.pins.set(key, fingerprint);
-      else if (pinned !== fingerprint) {
+      if (pinned === undefined) {
+        if (this.pins.size < this.maxPins) this.pins.set(key, fingerprint);
+      } else if (pinned !== fingerprint) {
         rugPull = true;
         weights.set("definition_changed", 0.9);
         matched.push({ id: "definition_changed", pinned: pinned.slice(0, 12), current: fingerprint.slice(0, 12) });

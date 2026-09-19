@@ -9,7 +9,7 @@
  * threat ids they carry. See that module for the reasoning behind each choice.
  */
 
-import type { Finding, Stage } from "./types";
+import type { Finding, Stage } from "./types.js";
 
 export const OWASP_LLM = "owasp-llm-2025";
 export const OWASP_AGENTIC = "owasp-agentic-2026";

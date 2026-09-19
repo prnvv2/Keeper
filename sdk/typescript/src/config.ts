@@ -3,8 +3,8 @@
  * options. Same precedence as the Python SDK, same fail-mode reasoning.
  */
 
-import { ConfigurationError } from "./errors";
-import { newId } from "./types";
+import { ConfigurationError } from "./errors.js";
+import { newId } from "./types.js";
 
 export const FAIL_OPEN = "open";
 export const FAIL_CLOSED = "closed";

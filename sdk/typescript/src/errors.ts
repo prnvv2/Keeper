@@ -1,7 +1,7 @@
 /** Exception hierarchy, mirroring `keeper_firewall.errors`. */
 
-import type { Decision } from "./types";
-import { decisionReasons } from "./types";
+import type { Decision } from "./types.js";
+import { decisionReasons } from "./types.js";
 
 export class KeeperError extends Error {
   constructor(message: string) {

@@ -41,13 +41,13 @@ VENDOR_PATTERNS: tuple[tuple[str, re.Pattern[str], Severity], ...] = (
     ("npm_token", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b"), Severity.CRITICAL),
     ("private_key_block", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |PGP |DSA )?PRIVATE KEY-----"), Severity.CRITICAL),
     ("jwt", re.compile(r"\beyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\b"), Severity.HIGH),
-    ("basic_auth_url", re.compile(r"\b[a-z][a-z0-9+.\-]*://[^\s/:@]+:[^\s/@]{3,}@[^\s/]+"), Severity.HIGH),
+    ("basic_auth_url", re.compile(r"\b[a-z][a-z0-9+.\-]{0,31}://[^\s/:@]{1,256}:[^\s/@]{3,256}@[^\s/]{1,256}"), Severity.HIGH),
     ("bearer_header", re.compile(r"(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._\-]{16,}"), Severity.HIGH),
 )
 
 # key = "value" style assignments whose value we then entropy-test.
 ASSIGNMENT = re.compile(
-    r"(?i)\b(?P<key>[a-z0-9_.\-]*(?:secret|token|password|passwd|pwd|api[_\-]?key|access[_\-]?key|"
+    r"(?i)\b(?P<key>[a-z0-9_.\-]{0,64}(?:secret|token|password|passwd|pwd|api[_\-]?key|access[_\-]?key|"
     r"client[_\-]?secret|credential)s?)\b\s*[=:]\s*['\"]?(?P<value>[^\s'\"]{12,})['\"]?"
 )
 

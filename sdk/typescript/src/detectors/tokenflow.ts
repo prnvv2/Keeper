@@ -13,10 +13,10 @@
  * cannot see that difference; this can.
  */
 
-import type { DetectorConfig } from "../config";
-import type { Finding, RiskTier, Stage, TrustLevel } from "../types";
-import { requiredAuthority, trustAuthority } from "../types";
-import { Detector, type DetectorInput, register } from "./base";
+import type { DetectorConfig } from "../config.js";
+import type { Finding, RiskTier, Stage, TrustLevel } from "../types.js";
+import { requiredAuthority, trustAuthority } from "../types.js";
+import { Detector, type DetectorInput, register } from "./base.js";
 
 /** Sinks by blast radius. Keys match as substrings of the tool name. */
 export const DEFAULT_SINK_RISK: Record<string, RiskTier> = {

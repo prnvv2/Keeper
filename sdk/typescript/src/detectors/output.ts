@@ -6,10 +6,10 @@
  * something it should not, or assert something the context does not support?
  */
 
-import type { DetectorConfig } from "../config";
-import type { Action, Finding, Severity, Span, Stage } from "../types";
-import { Detector, type DetectorInput, register } from "./base";
-import { VENDOR_PATTERNS } from "./secrets";
+import type { DetectorConfig } from "../config.js";
+import type { Action, Finding, Severity, Span, Stage } from "../types.js";
+import { Detector, type DetectorInput, register } from "./base.js";
+import { VENDOR_PATTERNS } from "./secrets.js";
 
 const SEVERITY_RANK: Record<Severity, number> = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
 

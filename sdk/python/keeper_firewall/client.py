@@ -404,6 +404,7 @@ class Keeper:
         context: RequestContext | None = None,
         *,
         server: str = "default",
+        pin: bool | None = None,
     ) -> list[tuple[Mapping[str, Any], Decision]]:
         """Screen MCP / function-calling tool definitions before the model sees them.
 
@@ -411,7 +412,9 @@ class Keeper:
         ``{"type": "function", "function": {...}}`` dicts, or Anthropic
         ``{"name", "description", "input_schema"}`` dicts. Each definition is
         scanned for embedded directives (OWASP MCP03) and pinned: a later
-        change to a pinned definition is reported as a rug pull.
+        change to a pinned definition is reported as a rug pull. Pass
+        ``pin=False`` to screen without pinning (for example when ``server``
+        does not identify one stable tool provider).
         Returns ``(definition, decision)`` pairs; drop the blocked ones.
         """
         from .detectors.agentic import tool_text
@@ -425,7 +428,7 @@ class Keeper:
                 tool_text(definition),
                 context,
                 trust=TrustLevel.EXTERNAL,
-                metadata={"tool_definition": definition, "server": server, "tool": definition.get("name")},
+                metadata={"tool_definition": definition, "server": server, "tool": definition.get("name"), "pin": pin},
             )
             results.append((raw, decision))
         return results

@@ -7,9 +7,9 @@
  * whether a live credential is about to leave the perimeter.
  */
 
-import type { DetectorConfig } from "../config";
-import type { Finding, Severity, Span, Stage } from "../types";
-import { Detector, type DetectorInput, register } from "./base";
+import type { DetectorConfig } from "../config.js";
+import type { Finding, Severity, Span, Stage } from "../types.js";
+import { Detector, type DetectorInput, register } from "./base.js";
 
 export const VENDOR_PATTERNS: [string, RegExp, Severity][] = [
   ["aws_access_key_id", /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g, "critical"],
@@ -26,12 +26,12 @@ export const VENDOR_PATTERNS: [string, RegExp, Severity][] = [
   ["npm_token", /\bnpm_[A-Za-z0-9]{36}\b/g, "critical"],
   ["private_key_block", /-----BEGIN (?:RSA |EC |OPENSSH |PGP |DSA )?PRIVATE KEY-----/g, "critical"],
   ["jwt", /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, "high"],
-  ["basic_auth_url", /\b[a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:[^\s/@]{3,}@[^\s/]+/g, "high"],
+  ["basic_auth_url", /\b[a-z][a-z0-9+.-]{0,31}:\/\/[^\s/:@]{1,256}:[^\s/@]{3,256}@[^\s/]{1,256}/g, "high"],
   ["bearer_header", /\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._-]{16,}/gi, "high"],
 ];
 
 const ASSIGNMENT =
-  /\b([a-z0-9_.-]*(?:secret|token|password|passwd|pwd|api[_-]?key|access[_-]?key|client[_-]?secret|credential)s?)\b\s*[=:]\s*['"]?([^\s'"]{12,})['"]?/gi;
+  /\b([a-z0-9_.-]{0,64}(?:secret|token|password|passwd|pwd|api[_-]?key|access[_-]?key|client[_-]?secret|credential)s?)\b\s*[=:]\s*['"]?([^\s'"]{12,})['"]?/gi;
 
 const PLACEHOLDERS = new Set([
   "xxx", "changeme", "your_api_key", "yourapikey", "todo", "redacted",

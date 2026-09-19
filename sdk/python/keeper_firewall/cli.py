@@ -196,6 +196,8 @@ def cmd_gateway(args: argparse.Namespace) -> int:
         upstream_api_key=os.environ.get(args.upstream_key_env) if args.upstream_key_env else None,
         anthropic_api_key=os.environ.get(args.anthropic_key_env) if args.anthropic_key_env else None,
         block_mode=args.block_mode,
+        admin_key=os.environ.get(args.admin_key_env) if args.admin_key_env else None,
+        pin_tool_definitions=args.pin_tools,
     )
     keeper = _keeper(args)
     gateway = KeeperGateway(keeper, config)
@@ -257,6 +259,9 @@ def build_parser() -> argparse.ArgumentParser:
     gw.add_argument("--upstream-key-env", help="env var holding the upstream key (replaces client keys)")
     gw.add_argument("--anthropic-key-env", help="env var holding the Anthropic key (replaces client keys)")
     gw.add_argument("--block-mode", default="error", choices=["error", "completion"])
+    gw.add_argument("--admin-key-env", help="env var holding a bearer key that unlocks GET /keeper/events")
+    gw.add_argument("--pin-tools", action="store_true",
+                    help="pin tool definitions per x-keeper-tool-server (rug-pull detection across requests)")
     gw.add_argument("--host", default="127.0.0.1")
     gw.add_argument("--port", type=int, default=8787)
     gw.add_argument("--log-level", default="info")
