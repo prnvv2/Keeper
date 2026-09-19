@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keeper — Live Traffic (illustrative)</title>
+<style>
+  :root{
+    --bg:#0a0d12; --panel:#12161d; --panel2:#161b24; --line:#2a323d; --line-soft:#1c2230;
+    --text:#e6e9ef; --dim:#9aa4b2; --faint:#616a78;
+    --allow:#2f9e6e; --flag:#c98a00; --redact:#7048e8; --challenge:#e8590c; --block:#d64545;
+    --telemetry:#3b5bdb; --anomaly:#e64980;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);}
+  body{padding:18px 20px 40px;}
+  a{color:#7aa2ff;}
+  header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+  header h1{margin:0 0 4px;font-size:20px;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;}
+  header p{margin:0;color:var(--dim);font-size:13px;max-width:62ch;}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid #5c3d00;color:#e8b34d;background:rgba(232,179,77,.08);}
+  .controls{display:flex;gap:8px;align-items:center;}
+  button{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit;}
+  button:hover{background:#1c222c;border-color:#3a4454;}
+  button.active{border-color:var(--allow);color:var(--allow);}
+
+  main{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start;}
+  @media (max-width: 980px){ main{grid-template-columns:1fr;} }
+
+  #stage{position:relative;width:100%;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:
+      radial-gradient(ellipse at 20% 0%, #10151d 0%, var(--bg) 60%);}
+  #world{position:absolute;top:0;left:0;width:1520px;height:900px;transform-origin:top left;}
+
+  .boxlabel{fill:var(--faint);font:600 12px var(--sans);letter-spacing:.08em;text-transform:uppercase;}
+  .node rect{fill:var(--panel2);stroke:var(--line);stroke-width:1.5;rx:10;}
+  .node .title{fill:var(--text);font:600 14px var(--sans);}
+  .node .sub{fill:var(--faint);font:11px var(--mono);}
+  .node.pulse rect{animation:pulseRing .55s ease-out;}
+  @keyframes pulseRing{
+    0%{stroke:var(--pulse,#3b5bdb);stroke-width:3;filter:drop-shadow(0 0 6px var(--pulse,#3b5bdb));}
+    100%{stroke:var(--line);stroke-width:1.5;filter:none;}
+  }
+  .conn{fill:none;stroke:var(--line);stroke-width:1.6;}
+  .conn.dashed{stroke-dasharray:5 5;stroke:#38455a;}
+  .conn.thin{stroke:var(--line-soft);}
+
+  .particle{position:absolute;top:0;left:0;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;
+      background:var(--allow);box-shadow:0 0 8px 1px var(--allow);pointer-events:none;}
+  .particle.ring::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px dashed rgba(255,255,255,.55);}
+  .particle.tiny{width:6px;height:6px;margin:-3px 0 0 -3px;box-shadow:0 0 6px 1px currentColor;}
+
+  aside.panel{display:flex;flex-direction:column;gap:12px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 14px;}
+  .card h2{margin:0 0 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  .stat{display:flex;flex-direction:column;gap:1px;}
+  .stat .v{font-size:19px;font-weight:650;font-variant-numeric:tabular-nums;}
+  .stat .k{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;}
+  .legend{display:flex;flex-direction:column;gap:6px;font-size:12.5px;}
+  .legend .row{display:flex;align-items:center;gap:8px;}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;}
+  .legend .dim{color:var(--dim);font-size:11.5px;margin-left:17px;}
+  #feed{display:flex;flex-direction:column-reverse;gap:5px;height:340px;overflow:hidden;font-family:var(--mono);font-size:11.5px;line-height:1.4;}
+  #feed .line{padding:4px 7px;border-left:3px solid var(--faint);background:rgba(255,255,255,.02);border-radius:3px;
+      opacity:0;animation:fadeIn .25s ease-out forwards;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
+  #feed .stage{color:var(--faint);}
+  footer{margin-top:16px;color:var(--faint);font-size:11.5px;text-align:center;}
+  footer a{color:var(--faint);text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Keeper — live traffic <span class="badge">simulated data</span></h1>
+    <p>An animated illustration of the request lifecycle in <code>docs/architecture.md</code> —
+       every particle and every number here is generated locally by this page's own script,
+       not read from a running Keeper instance.</p>
+  </div>
+  <div class="controls">
+    <button id="toggleBtn" class="active">Pause new traffic</button>
+  </div>
+</header>
+
+<main>
+  <div id="stage">
+    <div id="world">
+      <svg id="diagram" width="1520" height="900" viewBox="0 0 1520 900">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0L10,5L0,10z" fill="#3a4454"/>
+          </marker>
+        </defs>
+
+        <!-- boundary boxes -->
+        <rect x="30" y="30" width="1460" height="430" rx="14" fill="none" stroke="var(--line-soft)" stroke-dasharray="3 4"/>
+        <text x="50" y="54" class="boxlabel">Your application process — Keeper SDK</text>
+
+        <rect x="30" y="490" width="1460" height="380" rx="14" fill="none" stroke="var(--line-soft)" stroke-dasharray="3 4"/>
+        <text x="50" y="514" class="boxlabel">Control plane (self-hosted)</text>
+
+        <!-- ===== connectors (drawn under nodes) ===== -->
+        <g class="conn">
+          <path d="M130,185 L330,185" marker-end="url(#arrow)"/>
+          <path d="M330,185 L600,185" marker-end="url(#arrow)"/>
+          <path d="M600,185 L875,185" marker-end="url(#arrow)"/>
+          <path d="M875,185 L1150,185" marker-end="url(#arrow)"/>
+          <path d="M1150,150 L1150,70 L130,70 L130,150" marker-end="url(#arrow)" opacity=".55"/>
+        </g>
+        <g class="conn thin">
+          <path d="M330,220 L330,300"/>
+          <path d="M600,220 L600,300"/>
+          <path d="M1150,220 L1150,300"/>
+        </g>
+        <g class="conn dashed">
+          <path d="M805,360 L805,550" marker-end="url(#arrow)"/>
+          <path d="M805,614 L805,650"/>
+        </g>
+        <g class="conn thin">
+          <path d="M805,714 L805,740 L295,740 L295,760"/>
+          <path d="M805,740 L615,740 L615,760"/>
+          <path d="M805,740 L935,740 L935,760"/>
+          <path d="M805,740 L1255,740 L1255,760"/>
+          <path d="M880,682 L1000,682" marker-end="url(#arrow)"/>
+          <path d="M1100,714 L1100,740"/>
+        </g>
+
+        <!-- ===== SDK pipeline nodes ===== -->
+        <g class="node" id="node-app" transform="translate(60,150)">
+          <title>Your application — a chatbot, RAG service, or agent runner integrating Keeper.</title>
+          <rect width="140" height="70" rx="10"/>
+          <text x="70" y="32" text-anchor="middle" class="title">App</text>
+          <text x="70" y="50" text-anchor="middle" class="sub">keeper.chat(...)</text>
+        </g>
+
+        <g class="node" id="node-access" transform="translate(250,150)">
+          <title>Authentication, RBAC over models/tools, and per-scope rate limiting. Runs before any content is inspected.</title>
+          <rect width="160" height="70" rx="10"/>
+          <text x="80" y="32" text-anchor="middle" class="title">Access control</text>
+          <text x="80" y="50" text-anchor="middle" class="sub">authn · authz · rate limit</text>
+        </g>
+
+        <g class="node" id="node-inputf" transform="translate(470,150)">
+          <title>secrets to pii to banned_topics to prompt_injection to authority_claim to trajectory, combined by escalation.</title>
+          <rect width="260" height="70" rx="10"/>
+          <text x="130" y="30" text-anchor="middle" class="title">Input filters</text>
+          <text x="130" y="48" text-anchor="middle" class="sub">secrets · pii · injection · authority · trajectory</text>
+        </g>
+
+        <g class="node" id="node-model" transform="translate(790,150)">
+          <title>The model provider call — OpenAI-compatible, Anthropic, or any wrapped function.</title>
+          <rect width="170" height="70" rx="10"/>
+          <text x="85" y="32" text-anchor="middle" class="title">Model call</text>
+          <text x="85" y="50" text-anchor="middle" class="sub">provider.complete()</text>
+        </g>
+
+        <g class="node" id="node-outputf" transform="translate(1020,150)">
+          <title>secret_leakage to pii to banned_topics to groundedness, or the streaming circuit breaker.</title>
+          <rect width="260" height="70" rx="10"/>
+          <text x="130" y="30" text-anchor="middle" class="title">Output filters</text>
+          <text x="130" y="48" text-anchor="middle" class="sub">leakage · pii · banned · groundedness</text>
+        </g>
+
+        <g class="node" id="node-auditq" transform="translate(330,300)">
+          <title>Every decision — allow, flag, redact, block — becomes one audit event here, synchronously, before anything ships anywhere.</title>
+          <rect width="950" height="60" rx="10" opacity=".9"/>
+          <text x="475" y="36" text-anchor="middle" class="title" font-size="13">Local audit sink to bounded async queue</text>
+        </g>
+
+        <!-- ===== control plane nodes ===== -->
+        <g class="node" id="node-ingest" transform="translate(730,550)">
+          <title>/v1/telemetry/events — idempotent on event_id, never on the SDK's request hot path.</title>
+          <rect width="150" height="64" rx="10"/>
+          <text x="75" y="30" text-anchor="middle" class="title">Ingest</text>
+          <text x="75" y="47" text-anchor="middle" class="sub">/v1/*</text>
+        </g>
+
+        <g class="node" id="node-store" transform="translate(730,650)">
+          <title>One wide audit_events table plus a per-minute counter table for the dashboard timeline.</title>
+          <rect width="150" height="64" rx="10"/>
+          <text x="75" y="30" text-anchor="middle" class="title">Audit store</text>
+          <text x="75" y="47" text-anchor="middle" class="sub">Postgres</text>
+        </g>
+
+        <g class="node" id="node-anomaly" transform="translate(1000,650)">
+          <title>Cross-application patterns invisible to any single SDK instance — repeated injection, the same probe hitting several apps, volume spikes.</title>
+          <rect width="200" height="64" rx="10"/>
+          <text x="100" y="30" text-anchor="middle" class="title" font-size="13">Cross-app anomaly</text>
+          <text x="100" y="47" text-anchor="middle" class="sub">detection</text>
+        </g>
+
+        <g class="node" id="node-dashboard" transform="translate(200,760)">
+          <title>Live traffic, audit log search, investigate-by-correlation-id, analytics, fleet, policy, alerts.</title>
+          <rect width="190" height="64" rx="10"/>
+          <text x="95" y="30" text-anchor="middle" class="title">Dashboard</text>
+          <text x="95" y="47" text-anchor="middle" class="sub">to security team</text>
+        </g>
+
+        <g class="node" id="node-alerts" transform="translate(520,760)">
+          <title>match / threshold / anomaly rules, with cooldowns and per-channel delivery tracking.</title>
+          <rect width="190" height="64" rx="10"/>
+          <text x="95" y="30" text-anchor="middle" class="title">Alerting</text>
+          <text x="95" y="47" text-anchor="middle" class="sub">to Slack · webhook</text>
+        </g>
+
+        <g class="node" id="node-siem" transform="translate(840,760)">
+          <title>Webhook (built first), CEF/syslog, or OTLP — the org's SIEM stays the system of record.</title>
+          <rect width="190" height="64" rx="10"/>
+          <text x="95" y="30" text-anchor="middle" class="title">SIEM export</text>
+          <text x="95" y="47" text-anchor="middle" class="sub">to Splunk · Elastic</text>
+        </g>
+
+        <g class="node" id="node-fleet" transform="translate(1160,760)">
+          <title>Which applications run the SDK, on which version, enforcing which policy — and who's gone stale.</title>
+          <rect width="190" height="64" rx="10"/>
+          <text x="95" y="30" text-anchor="middle" class="title">Fleet inventory</text>
+          <text x="95" y="47" text-anchor="middle" class="sub">versions · coverage</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <div class="card">
+      <h2>Live counters</h2>
+      <div class="stats">
+        <div class="stat"><span class="v" id="s-total">0</span><span class="k">requests</span></div>
+        <div class="stat"><span class="v" id="s-blockrate">0%</span><span class="k">block rate</span></div>
+        <div class="stat"><span class="v" id="s-allow">0</span><span class="k">allowed</span></div>
+        <div class="stat"><span class="v" id="s-block">0</span><span class="k">blocked</span></div>
+        <div class="stat"><span class="v" id="s-flag">0</span><span class="k">flagged</span></div>
+        <div class="stat"><span class="v" id="s-redact">0</span><span class="k">redacted</span></div>
+        <div class="stat"><span class="v" id="s-events">0</span><span class="k">events ingested</span></div>
+        <div class="stat"><span class="v" id="s-alerts">0</span><span class="k">alerts fired</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Legend</h2>
+      <div class="legend">
+        <div class="row"><span class="dot" style="background:var(--allow)"></span> allow</div>
+        <div class="row"><span class="dot" style="background:var(--flag)"></span> flag</div>
+        <div class="row"><span class="dot" style="background:var(--redact)"></span> redact</div>
+        <div class="row"><span class="dot" style="background:var(--block)"></span> block</div>
+        <div class="row"><span class="dot" style="background:var(--telemetry)"></span> audit / telemetry</div>
+        <div class="row"><span class="dot" style="background:var(--anomaly)"></span> cross-app anomaly</div>
+        <div class="dim">dashed ring = content from a retrieved document or tool result, scored with the boundary trust-multiplier</div>
+      </div>
+    </div>
+
+    <div class="card" style="flex:1;">
+      <h2>Live feed</h2>
+      <div id="feed"></div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  Illustrative simulation of <a href="../README.md">Keeper</a>'s architecture — not connected to a live instance.
+  See <a href="../docs/architecture.md">docs/architecture.md</a> and <a href="../docs/observability.md">docs/observability.md</a> for how the real thing behaves.
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------------------------------------------------------------
+  // Responsive scaling: the whole diagram lives in a fixed 1520x900 world;
+  // #world is scaled uniformly to fit the available width, and everything
+  // inside it (SVG + particle divs) shares one coordinate space, so a
+  // particle's (x,y) never needs to know the current scale factor.
+  // ---------------------------------------------------------------------
+  var WORLD_W = 1520, WORLD_H = 900;
+  var stage = document.getElementById('stage');
+  var world = document.getElementById('world');
+
+  function rescale(){
+    var scale = Math.min(1, stage.clientWidth / WORLD_W);
+    world.style.transform = 'scale(' + scale + ')';
+    stage.style.height = (WORLD_H * scale) + 'px';
+  }
+  window.addEventListener('resize', rescale);
+  rescale();
+
+  // ---------------------------------------------------------------------
+  // Generic point-array animation: interpolate an element's translate()
+  // along a polyline over a fixed duration. Kept deliberately simple (no
+  // easing library, no dependency) so this file stays a single self
+  // contained page.
+  // ---------------------------------------------------------------------
+  function segLen(a,b){ return Math.hypot(b[0]-a[0], b[1]-a[1]); }
+
+  function pointAt(points, t){
+    var total = 0;
+    for(var i=1;i<points.length;i++) total += segLen(points[i-1], points[i]);
+    var remaining = t * total;
+    for(var j=1;j<points.length;j++){
+      var len = segLen(points[j-1], points[j]);
+      if(remaining <= len || j === points.length-1){
+        var f = len === 0 ? 0 : remaining/len;
+        return [
+          points[j-1][0] + (points[j][0]-points[j-1][0]) * f,
+          points[j-1][1] + (points[j][1]-points[j-1][1]) * f,
+        ];
+      }
+      remaining -= len;
+    }
+    return points[points.length-1];
+  }
+
+  function animate(el, points, duration, onDone){
+    var start = performance.now();
+    function frame(now){
+      var t = Math.min(1, (now-start)/duration);
+      var xy = pointAt(points, t);
+      el.style.transform = 'translate(' + xy[0] + 'px,' + xy[1] + 'px)';
+      if(t < 1) requestAnimationFrame(frame);
+      else if(onDone) onDone();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function spawnParticle(className, color){
+    var el = document.createElement('div');
+    el.className = 'particle ' + className;
+    el.style.background = color;
+    el.style.boxShadow = '0 0 8px 1px ' + color;
+    world.appendChild(el);
+    return el;
+  }
+
+  function pulse(nodeId, color){
+    var g = document.getElementById(nodeId);
+    if(!g) return;
+    g.style.setProperty('--pulse', color);
+    g.classList.remove('pulse');
+    void g.offsetWidth; // restart the CSS animation
+    g.classList.add('pulse');
+  }
+
+  function getCss(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  var COLORS = {
+    allow: getCss('--allow'), flag: getCss('--flag'), redact: getCss('--redact'),
+    block: getCss('--block'), telemetry: getCss('--telemetry'), anomaly: getCss('--anomaly'),
+  };
+
+  // ---------------------------------------------------------------------
+  // Coordinates, matching the SVG node positions above (world units).
+  // ---------------------------------------------------------------------
+  var P = {
+    app:[130,185], access:[330,185], inputf:[600,185], model:[875,185], outputf:[1150,185],
+    replyTop:[[1150,150],[1150,70],[130,70],[130,150]],
+    auditFromAccess:[[330,220],[330,300],[330,330]],
+    auditFromInput:[[600,220],[600,300],[700,330]],
+    auditFromOutput:[[1150,220],[1150,300],[950,330]],
+    queueToIngest:[[805,330],[805,360],[805,550],[805,582]],
+    ingestToStore:[[805,614],[805,650],[805,682]],
+    storeToAnomaly:[[820,682],[1000,682],[1100,682]],
+    anomalyToAlerts:[[1100,714],[1100,740],[615,740],[615,792]],
+    busTo:{
+      dashboard:[[805,714],[805,740],[295,740],[295,792]],
+      alerts:[[805,714],[805,740],[615,740],[615,792]],
+      siem:[[805,714],[805,740],[935,740],[935,792]],
+      fleet:[[805,714],[805,740],[1255,740],[1255,792]],
+    },
+  };
+
+  // ---------------------------------------------------------------------
+  // Detector outcomes. Weights are illustrative, not measured — the point
+  // is the *shape* of the distribution (mostly allow, a real but modest
+  // block rate) and the boundary-awareness effect below, not exact figures.
+  // ---------------------------------------------------------------------
+  function pickOutcome(stageName, boosted){
+    var table = stageName === 'input'
+      ? [
+          ['allow', boosted ? 40 : 70, null],
+          ['flag', 8, 'prompt_injection'],
+          ['redact', 10, 'pii'],
+          ['block', boosted ? 42 : 12, 'prompt_injection'],
+        ]
+      : [
+          ['allow', 84, null],
+          ['flag', 6, 'groundedness'],
+          ['redact', 5, 'pii'],
+          ['block', 5, 'secret_leakage'],
+        ];
+    var total = 0;
+    for(var i=0;i<table.length;i++) total += table[i][1];
+    var r = Math.random() * total;
+    for(var j=0;j<table.length;j++){
+      r -= table[j][1];
+      if(r <= 0) return table[j];
+    }
+    return table[0];
+  }
+
+  var paused = false, blockedSinceBatch = 0, alertCooldownUntil = 0, batchCount = 0;
+  var stats = { total:0, allow:0, block:0, flag:0, redact:0, events:0, alerts:0 };
+  function renderStats(){
+    document.getElementById('s-total').textContent = stats.total;
+    document.getElementById('s-allow').textContent = stats.allow;
+    document.getElementById('s-block').textContent = stats.block;
+    document.getElementById('s-flag').textContent = stats.flag;
+    document.getElementById('s-redact').textContent = stats.redact;
+    document.getElementById('s-events').textContent = stats.events;
+    document.getElementById('s-alerts').textContent = stats.alerts;
+    document.getElementById('s-blockrate').textContent =
+      stats.total ? Math.round(stats.block/stats.total*100) + '%' : '0%';
+  }
+
+  var feed = document.getElementById('feed');
+  function logLine(stageLabel, action, detail){
+    var div = document.createElement('div');
+    div.className = 'line';
+    div.style.borderLeftColor = COLORS[action] || COLORS.telemetry;
+    div.innerHTML = '<span class="stage">[' + stageLabel + ']</span> ' + detail;
+    feed.insertBefore(div, feed.firstChild);
+    while(feed.children.length > 60) feed.removeChild(feed.lastChild);
+  }
+
+  // ---------------------------------------------------------------------
+  // Every decision, including a block, produces exactly one audit event
+  // that heads for the queue. This is the animation's version of the
+  // "one decision, one audit event" invariant in the low-level design doc.
+  // ---------------------------------------------------------------------
+  function emitAudit(fromPoints, action, id, stageLabel, detector, origin){
+    stats.events++;
+    var el = spawnParticle('tiny', COLORS.telemetry);
+    animate(el, fromPoints, 650, function(){ el.remove(); });
+    var originTag = origin !== 'user' ? (' (external: ' + origin + ')') : '';
+    logLine(stageLabel, action, action + (detector ? (' — ' + detector) : '') + originTag + ' · req_' + id);
+    if(action === 'block' || action === 'flag') blockedSinceBatch++;
+  }
+
+  var reqId = 1;
+
+  function spawnRequest(){
+    if(paused) return;
+    var id = (reqId++).toString(36);
+    var originRoll = Math.random();
+    var origin = originRoll < 0.72 ? 'user' : (originRoll < 0.88 ? 'retrieved' : 'tool_result');
+    var boosted = origin !== 'user'; // boundary trust multiplier
+    stats.total++; renderStats();
+
+    var el = spawnParticle(boosted ? 'ring' : '', COLORS.allow);
+
+    // App -> Access
+    animate(el, [P.app, P.access], 500, function(){
+      // ~4% of requests are refused at access control (auth/quota).
+      if(Math.random() < 0.04){
+        pulse('node-access', COLORS.block);
+        el.style.background = COLORS.block;
+        setTimeout(function(){ el.remove(); }, 150);
+        emitAudit(P.auditFromAccess, 'block', id, 'access', null, origin);
+        stats.block++; renderStats();
+        return;
+      }
+      // Access -> Input filters
+      animate(el, [P.access, P.inputf], 500, function(){
+        var outcome = pickOutcome('input', boosted);
+        var action = outcome[0], detector = outcome[2];
+        pulse('node-inputf', COLORS[action]);
+        emitAudit(P.auditFromInput, action, id, 'input', detector, origin);
+        if(action === 'allow') stats.allow++;
+        if(action === 'flag') stats.flag++;
+        if(action === 'redact') stats.redact++;
+        renderStats();
+
+        if(action === 'block'){
+          el.style.background = COLORS.block;
+          el.style.boxShadow = '0 0 8px 1px ' + COLORS.block;
+          setTimeout(function(){ el.remove(); }, 150);
+          stats.block++; renderStats();
+          return;
+        }
+        el.style.background = COLORS[action];
+        el.style.boxShadow = '0 0 8px 1px ' + COLORS[action];
+
+        // Input filters -> Model
+        animate(el, [P.inputf, P.model], 550, function(){
+          pulse('node-model', COLORS.telemetry);
+          // Model -> Output filters
+          animate(el, [P.model, P.outputf], 550, function(){
+            var outOutcome = pickOutcome('output', false);
+            var oAction = outOutcome[0], oDetector = outOutcome[2];
+            pulse('node-outputf', COLORS[oAction]);
+            emitAudit(P.auditFromOutput, oAction, id, 'output', oDetector, origin);
+
+            if(oAction === 'block'){
+              el.style.background = COLORS.block;
+              setTimeout(function(){ el.remove(); }, 150);
+              stats.block++; renderStats();
+              return;
+            }
+            if(oAction === 'flag') stats.flag++;
+            if(oAction === 'redact') stats.redact++;
+            el.style.background = COLORS[oAction];
+            el.style.boxShadow = '0 0 8px 1px ' + COLORS[oAction];
+            renderStats();
+
+            // Output filters -> back to the app (delivered)
+            var replyPath = [P.outputf].concat(P.replyTop.slice(1)).concat([P.app]);
+            animate(el, replyPath, 700, function(){
+              pulse('node-app', COLORS[oAction]);
+              el.remove();
+            });
+          });
+        });
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Batch shipping: the SDK ships telemetry asynchronously on an interval,
+  // never on the request path. This loop is independent of spawnRequest.
+  // ---------------------------------------------------------------------
+  function shipBatch(){
+    if(paused){ return; }
+    batchCount++;
+    var pulseEl = spawnParticle('', COLORS.telemetry);
+    animate(pulseEl, P.queueToIngest, 700, function(){
+      pulse('node-ingest', COLORS.telemetry);
+      animate(pulseEl, P.ingestToStore, 400, function(){
+        pulse('node-store', COLORS.telemetry);
+
+        var targets = ['dashboard', 'siem'];
+        if(blockedSinceBatch > 0) targets.push('alerts');
+        if(batchCount % 4 === 0) targets.push('fleet');
+
+        targets.forEach(function(name, i){
+          var fan = i === 0 ? pulseEl : spawnParticle('', COLORS.telemetry);
+          animate(fan, P.busTo[name], 500, function(){
+            pulse('node-' + name, COLORS.telemetry);
+            fan.remove();
+            if(name === 'alerts' && blockedSinceBatch > 0 && performance.now() > alertCooldownUntil){
+              stats.alerts++; renderStats();
+              logLine('alert', 'block', 'credential/injection alert fired — ' + blockedSinceBatch + ' event(s) this batch');
+              alertCooldownUntil = performance.now() + 4000; // mirrors real cooldowns
+            }
+          });
+        });
+        blockedSinceBatch = 0;
+
+        // Occasional cross-application anomaly pulse, purely illustrative.
+        if(batchCount % 5 === 0){
+          var anomaly = spawnParticle('', COLORS.anomaly);
+          animate(anomaly, P.storeToAnomaly, 500, function(){
+            pulse('node-anomaly', COLORS.anomaly);
+            animate(anomaly, P.anomalyToAlerts, 500, function(){
+              pulse('node-alerts', COLORS.anomaly);
+              logLine('anomaly', 'flag', 'cross_application_probe — same payload seen in 3 applications');
+              anomaly.remove();
+            });
+          });
+        }
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Spawners
+  // ---------------------------------------------------------------------
+  function loopSpawn(){
+    spawnRequest();
+    setTimeout(loopSpawn, 650 + Math.random()*550);
+  }
+  function loopBatch(){
+    shipBatch();
+    setTimeout(loopBatch, 1500);
+  }
+
+  var btn = document.getElementById('toggleBtn');
+  btn.addEventListener('click', function(){
+    paused = !paused;
+    btn.textContent = paused ? 'Resume traffic' : 'Pause new traffic';
+    btn.classList.toggle('active', !paused);
+  });
+
+  renderStats();
+  loopSpawn();
+  loopBatch();
+})();
+</script>
+</body>
+</html>
